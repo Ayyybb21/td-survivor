@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#07111f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="TD Survivor">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon.svg">
+<link rel="stylesheet" href="styles.css">
+<title>TD Survivor</title>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div>
+      <div class="eyebrow">2026 NFL • PRIVATE LEAGUE</div>
+      <h1>TD Survivor</h1>
+    </div>
+    <button id="profileBtn" class="round">BB</button>
+  </header>
+
+  <section class="hero card">
+    <div class="hero-top">
+      <div>
+        <span class="pill">WEEK <span id="weekNum">1</span></span>
+        <h2 id="heroTitle">Your TD scorer.</h2>
+        <p id="heroText">Pick one player to score a rushing or receiving touchdown. Passing TDs do not count.</p>
+      </div>
+      <div class="ball">🏈</div>
+    </div>
+    <div class="countdown">
+      <div><span>Pick deadline</span><strong id="deadline">Thu • 8:15 PM ET</strong></div>
+      <div class="status" id="pickStatus">OPEN</div>
+    </div>
+  </section>
+
+  <div class="stats">
+    <div class="stat card"><span>Alive</span><b id="aliveCount">—</b></div>
+    <div class="stat card"><span>Prize Pool</span><b id="pot">$600</b></div>
+    <div class="stat card"><span>Your Status</span><b id="myStatus">Alive</b></div>
+  </div>
+
+  <section id="pickView" class="card panel">
+    <div class="panel-head">
+      <div><div class="eyebrow">MAKE YOUR PICK</div><h3>Available TD scorers</h3></div>
+      <span class="muted" id="usedCount">0 used</span>
+    </div>
+    <label class="search"><span>⌕</span><input id="search" placeholder="Search player" autocomplete="off"></label>
+    <div class="filters">
+      <button class="filter active" data-pos="ALL">All</button>
+      <button class="filter" data-pos="RB">RB</button>
+      <button class="filter" data-pos="WR">WR</button>
+      <button class="filter" data-pos="TE">TE</button>
+      <button class="filter" data-pos="QB">QB</button>
+    </div>
+    <div id="players"></div>
+  </section>
+
+  <section id="standingsView" class="card panel hidden">
+    <div class="panel-head"><div><div class="eyebrow">LEAGUE</div><h3>Standings</h3></div><span class="muted" id="standingsMeta"></span></div>
+    <div id="standings"></div>
+  </section>
+
+  <section id="historyView" class="card panel hidden">
+    <div class="panel-head"><div><div class="eyebrow">YOUR SEASON</div><h3>Pick history</h3></div></div>
+    <div id="history"></div>
+  </section>
+
+  <section id="adminView" class="card panel hidden">
+    <div class="panel-head"><div><div class="eyebrow">COMMISSIONER</div><h3>Control center</h3></div><span class="admin-badge">ADMIN</span></div>
+    <div class="admin-grid">
+      <div><span>Entries</span><b id="adminEntries">—</b></div>
+      <div><span>Alive</span><b id="adminAlive">—</b></div>
+      <div><span>Buybacks</span><b id="adminBuybacks">—</b></div>
+      <div><span>Pot</span><b id="adminPot">—</b></div>
+    </div>
+    <div class="admin-actions">
+      <button id="lockBtn">🔒 Lock Week</button>
+      <button id="announcementBtn">📣 Generate Announcement</button>
+      <button id="buybackBtn">💵 Record Buyback</button>
+    </div>
+    <div class="announcement hidden" id="announcement"></div>
+  </section>
+
+  <nav class="nav">
+    <button class="navbtn active" data-view="pickView"><span>🎯</span><small>Pick</small></button>
+    <button class="navbtn" data-view="standingsView"><span>🏆</span><small>Standings</small></button>
+    <button class="navbtn" data-view="historyView"><span>📜</span><small>History</small></button>
+    <button class="navbtn" data-view="adminView"><span>⚙️</span><small>Admin</small></button>
+  </nav>
+</div>
+
+<div id="modal" class="modal hidden">
+  <div class="shade"></div>
+  <div class="sheet">
+    <button id="close" class="close">×</button>
+    <div class="bigicon">🏈</div>
+    <div class="eyebrow">CONFIRM PICK</div>
+    <h2 id="chosen"></h2>
+    <p>This pick becomes locked at the deadline. You cannot use this player again for the rest of the season.</p>
+    <button id="confirm" class="primary">Confirm Pick</button>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
