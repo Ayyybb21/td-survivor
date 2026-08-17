@@ -1,9 +1,56 @@
 
+
+// TD Survivor V6 — iOS Home Screen authentication fix
+// Replace the beginning of app.js with this auth bootstrap section,
+// then keep the rest of the V5 application code unchanged.
+//
+// This version stores the owner token in BOTH localStorage and a first-party
+// cookie. iOS copies cookies into a newly-created Home Screen web app, while
+// it does not copy localStorage.
+
 const API_URL = (window.TD_CONFIG?.API_URL || "").trim();
+
 const params = new URLSearchParams(window.location.search);
-const URL_TOKEN = params.get("token");
-if (URL_TOKEN) localStorage.setItem("td_owner_token", URL_TOKEN);
-const OWNER_TOKEN = URL_TOKEN || localStorage.getItem("td_owner_token") || "";
+const URL_TOKEN = params.get("token") || "";
+
+function readCookie(name) {
+  const prefix = name + "=";
+  const parts = document.cookie.split(";").map(v => v.trim());
+  const found = parts.find(v => v.startsWith(prefix));
+  return found ? decodeURIComponent(found.slice(prefix.length)) : "";
+}
+
+function writeOwnerToken(token) {
+  if (!token) return;
+
+  // Browser storage is useful for normal Safari/browser use.
+  localStorage.setItem("td_owner_token", token);
+
+  // Cookie is the important piece for iPhone/iPad "Add to Home Screen".
+  // Safari/WebKit copies first-party cookies into the newly-created web app.
+  document.cookie =
+    "td_owner_token=" + encodeURIComponent(token) +
+    "; Max-Age=31536000; Path=/; Secure; SameSite=Lax";
+}
+
+if (URL_TOKEN) {
+  writeOwnerToken(URL_TOKEN);
+}
+
+const OWNER_TOKEN =
+  URL_TOKEN ||
+  readCookie("td_owner_token") ||
+  localStorage.getItem("td_owner_token") ||
+  "";
+
+// Once the token is safely stored, remove it from the visible URL.
+// This avoids leaving the private account token sitting in screenshots/history.
+if (URL_TOKEN && window.history && history.replaceState) {
+  const cleanUrl = new URL(window.location.href);
+  cleanUrl.searchParams.delete("token");
+  history.replaceState({}, document.title, cleanUrl.pathname + cleanUrl.search + cleanUrl.hash);
+}
+
 
 const PLAYERS = [
 ["derrick-henry","Derrick Henry","BAL","RB"],["saquon-barkley","Saquon Barkley","PHI","RB"],
