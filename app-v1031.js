@@ -1,0 +1,1007 @@
+
+const API_URL = (window.TD_CONFIG?.API_URL || "").trim();
+const params = new URLSearchParams(window.location.search);
+const URL_TOKEN = params.get("token");
+if (URL_TOKEN) localStorage.setItem("td_owner_token", URL_TOKEN);
+const OWNER_TOKEN = URL_TOKEN || localStorage.getItem("td_owner_token") || "";
+
+let PLAYERS = [];
+let PLAYER_POOL_META = {loaded:false,count:0,source:""};
+let playerRenderLimit = 60;
+
+const PLAYER_CACHE_KEY = "td_nfl_player_pool_v1031";
+const PLAYER_CACHE_TIME_KEY = "td_nfl_player_pool_v1031_time";
+const PLAYER_CACHE_TTL = 24 * 60 * 60 * 1000;
+const PLAYER_POSITIONS = ["QB","RB","WR","TE"];
+
+function playerHeadshot(playerId){
+  return `https://sleepercdn.com/content/nfl/players/${playerId}.jpg`;
+}
+
+function normalizeSleeperPlayers(raw){
+  const seen=new Map();
+
+  Object.values(raw||{}).forEach(p=>{
+    const position=String(p.position||"").toUpperCase();
+    if(!PLAYER_POSITIONS.includes(position))return;
+    if(!p.player_id || !p.team)return;
+
+    const name=(p.full_name || [p.first_name,p.last_name].filter(Boolean).join(" ")).trim();
+    if(!name)return;
+
+    let rawRank=Number.isFinite(Number(p.search_rank)) ? Number(p.search_rank) : 99999;
+
+    // Known Sleeper search-rank anomalies observed in the live NFL feed.
+    // They are valid players, so keep them searchable, but do not let the bad
+    // rank value place them above established fantasy stars.
+    const rankingAnomalies=new Set(["kalif jackson","micah simon"]);
+    if(rankingAnomalies.has(name.toLowerCase())){
+      rawRank=50000;
+    }
+
+    // Sleeper occasionally emits stray top-ranked search values for fringe
+    // players. Use lightweight roster metadata as a sanity check so those
+    // anomalies do not appear above established stars.
+    const yearsExp=Number(p.years_exp);
+    const fantasyPos=String(p.fantasy_positions||"");
+    const hasDepthRole=Boolean(p.depth_chart_position || p.depth_chart_order);
+    if(rawRank<=2 && !hasDepthRole && !Number.isFinite(yearsExp) && !fantasyPos){
+      rawRank=50000;
+    }
+
+    const item={
+      id:String(p.player_id),
+      name,
+      team:String(p.team||"FA"),
+      position,
+      photo:playerHeadshot(String(p.player_id)),
+      rank:rawRank
+    };
+
+    const current=seen.get(item.id);
+    if(!current || item.rank<current.rank)seen.set(item.id,item);
+  });
+
+  const players=[...seen.values()];
+
+  // Preserve Sleeper's popularity/search ordering, but sanitize obvious ranking
+  // anomalies. Some fringe players can occasionally arrive with tiny/invalid
+  // search_rank values and jump ahead of established stars.
+  //
+  // Rules:
+  // - Missing/zero/negative ranks are pushed to the deep-player section.
+  // - Extremely tiny ranks on fringe/unrecognized entries are softened.
+  // - Legitimate Sleeper ranks remain the primary sort.
+  players.forEach(p=>{
+    let r=Number(p.rank);
+
+    if(!Number.isFinite(r) || r<=0){
+      r=99999;
+    }
+
+    // A very small rank is only trusted when the feed appears to be treating
+    // the player like a true top result. Unknown edge cases get moved lower.
+    if(r<3 && !["QB","RB","WR","TE"].includes(p.position)){
+      r=99999;
+    }
+
+    p.sortRank=r;
+  });
+
+  return players.sort((a,b)=>
+    a.sortRank-b.sortRank ||
+    a.rank-b.rank ||
+    a.position.localeCompare(b.position) ||
+    a.name.localeCompare(b.name)
+  );
+}
+
+async function fetchSleeperPlayerPool(){
+  // Sleeper recommends keeping the players call infrequent. Fetch active players
+  // by position and cache the combined result on-device for 24 hours.
+  const responses=await Promise.all(
+    PLAYER_POSITIONS.map(pos=>
+      fetch(`https://api.sleeper.app/v1/players/nfl?position=${pos}&active=true`,{
+        cache:"no-store"
+      }).then(r=>{
+        if(!r.ok)throw new Error(`Sleeper ${pos} request failed (${r.status})`);
+        return r.json();
+      })
+    )
+  );
+
+  const combined={};
+  responses.forEach(group=>Object.assign(combined,group||{}));
+  const players=normalizeSleeperPlayers(combined);
+
+  if(players.length<100)throw new Error("NFL player feed returned too few players.");
+
+  localStorage.setItem(PLAYER_CACHE_KEY,JSON.stringify(players));
+  localStorage.setItem(PLAYER_CACHE_TIME_KEY,String(Date.now()));
+  return players;
+}
+
+async function loadPlayerPool(){
+  const cachedAt=Number(localStorage.getItem(PLAYER_CACHE_TIME_KEY)||0);
+  const cachedRaw=localStorage.getItem(PLAYER_CACHE_KEY);
+
+  if(cachedRaw && Date.now()-cachedAt<PLAYER_CACHE_TTL){
+    try{
+      const cached=JSON.parse(cachedRaw);
+      if(Array.isArray(cached) && cached.length>100){
+        PLAYERS=cached;
+        PLAYER_POOL_META={loaded:true,count:PLAYERS.length,source:"cache"};
+        return;
+      }
+    }catch(_){}
+  }
+
+  try{
+    PLAYERS=await fetchSleeperPlayerPool();
+    PLAYER_POOL_META={loaded:true,count:PLAYERS.length,source:"Sleeper"};
+  }catch(err){
+    console.error("Player pool load failed",err);
+
+    // Use stale cache if the network is unavailable.
+    if(cachedRaw){
+      try{
+        const cached=JSON.parse(cachedRaw);
+        if(Array.isArray(cached) && cached.length){
+          PLAYERS=cached;
+          PLAYER_POOL_META={loaded:true,count:PLAYERS.length,source:"cached fallback"};
+          return;
+        }
+      }catch(_){}
+    }
+
+    // Small emergency fallback keeps pick submission functional if Sleeper is down.
+    PLAYERS=[
+      {id:"fallback-henry",name:"Derrick Henry",team:"BAL",position:"RB",photo:"",rank:1},
+      {id:"fallback-barkley",name:"Saquon Barkley",team:"PHI",position:"RB",photo:"",rank:2},
+      {id:"fallback-bijan",name:"Bijan Robinson",team:"ATL",position:"RB",photo:"",rank:3}
+    ];
+    PLAYER_POOL_META={loaded:true,count:PLAYERS.length,source:"emergency fallback"};
+  }
+}
+
+function playerInitials(name){
+  return String(name||"")
+    .split(/\s+/)
+    .filter(Boolean)
+    .map(x=>x[0])
+    .slice(0,2)
+    .join("")
+    .toUpperCase();
+}
+
+
+let selectedPlayer = null;
+let state = null;
+let adminState = null;
+let ADMIN_TOKEN = localStorage.getItem("td_admin_token") || "";
+
+async function loadAdminState(){
+  if(!ADMIN_TOKEN) return null;
+  adminState = await jsonp("adminState",{adminToken:ADMIN_TOKEN});
+  return adminState;
+}
+async function adminPost(action, body={}){
+  if(!ADMIN_TOKEN) throw new Error("Commissioner token is not saved.");
+  await post(action,{adminToken:ADMIN_TOKEN,...body});
+
+  // Do not block the UI waiting for Google Sheets propagation.
+  // Reconcile repeatedly in the background instead.
+  scheduleLiveReconcile();
+}
+
+// V8.2: optimistic admin actions.
+// The screen updates FIRST, then Google Sheets syncs in the background.
+function renderAllLiveViews(){
+  renderAdmin();
+  renderHeader();
+  renderStandings();
+  renderHistory();
+}
+
+// Google Apps Script POSTs are sent with no-cors. On some browsers, the fetch
+// promise can resolve before the Sheet mutation is visible to a subsequent read.
+// Reconcile several times in the background so users never need to manually refresh.
+function scheduleLiveReconcile(){
+  const delays=[700,1800,3500,6000];
+  delays.forEach(ms=>{
+    setTimeout(async()=>{
+      try{
+        await Promise.all([refreshLive(), loadAdminState()]);
+        renderAllLiveViews();
+      }catch(err){
+        console.warn("Background reconcile failed",err);
+      }
+    },ms);
+  });
+}
+
+function syncAdminInBackground(action, body, rollback){
+  post(action,{adminToken:ADMIN_TOKEN,...body})
+    .then(()=>{
+      // Start staggered refreshes immediately; one of these will occur after the
+      // Google Sheet write has actually become visible.
+      scheduleLiveReconcile();
+    })
+    .catch(err=>{
+      if(typeof rollback==="function") rollback();
+      renderAllLiveViews();
+      alert("The change could not be saved: "+err.message);
+    });
+}
+
+
+async function retireOldServiceWorkers(){
+  if("serviceWorker" in navigator){
+    try{
+      const regs=await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map(r=>r.unregister()));
+      const names=await caches.keys();
+      await Promise.all(names.filter(n=>n.startsWith("td-survivor-")).map(n=>caches.delete(n)));
+    }catch(err){
+      console.warn("Could not retire old service worker",err);
+    }
+  }
+}
+
+const TD_APP_VERSION="10.3.1";
+let updateCheckTimer=null;
+
+function showUpdateBanner(nextVersion){
+  if(document.querySelector("#tdUpdateBanner"))return;
+
+  const banner=document.createElement("div");
+  banner.id="tdUpdateBanner";
+  banner.style.cssText=[
+    "position:fixed","left:50%","transform:translateX(-50%)",
+    "bottom:92px","width:min(520px,calc(100% - 28px))",
+    "z-index:9999","background:#eef2f6","color:#07111f",
+    "border-radius:14px","padding:12px 13px",
+    "box-shadow:0 12px 40px #0009","display:flex",
+    "align-items:center","gap:10px"
+  ].join(";");
+
+  banner.innerHTML=`
+    <div style="flex:1;">
+      <div style="font-size:11px;font-weight:900;">TD Survivor update available</div>
+      <div style="font-size:9px;opacity:.72;margin-top:2px;">Version ${nextVersion} is ready.</div>
+    </div>
+    <button id="tdUpdateNow" style="border:0;border-radius:9px;padding:9px 10px;background:#07111f;color:#fff;font-size:9px;font-weight:900;">Update Now</button>
+  `;
+
+  document.body.appendChild(banner);
+
+  document.querySelector("#tdUpdateNow").onclick=()=>{
+    localStorage.setItem("td_last_seen_version",String(nextVersion));
+    const u=new URL(window.location.href);
+    u.searchParams.set("_update",Date.now());
+    window.location.replace(u.toString());
+  };
+}
+
+async function checkForAppUpdate(){
+  try{
+    const res=await fetch(`version.json?t=${Date.now()}`,{cache:"no-store"});
+    if(!res.ok)return;
+    const info=await res.json();
+    if(info.version && String(info.version)!==TD_APP_VERSION){
+      showUpdateBanner(info.version);
+    }
+  }catch(err){
+    console.warn("Update check failed",err);
+  }
+}
+
+function startUpdateChecks(){
+  checkForAppUpdate();
+  clearInterval(updateCheckTimer);
+  updateCheckTimer=setInterval(checkForAppUpdate,5*60*1000);
+}
+
+function demoState(){
+  const names=["bb","Tay","Eddie","Brendan","Johnny","Jack","Timmy","Theresa","Ash","Rick","Drew","Byrne","Mac","Ed","Vincie","Big Vince","Dane","Gilchrist","Joe","Logan","Gabe","Vinny"];
+  return {
+    mode:"demo",
+    league:{name:"TD Survivor 2026",week:1,entryFee:20,buybackFee:10,deadline:"Thu • 8:15 PM ET",locked:false,projectedPot:names.length*20,collectedPot:0},
+    owner:{id:"demo",name:"bb"},
+    entries:[{id:"demo1",label:"bb",paid:false,status:"alive",buybackUsed:false,buybackPaid:false,picks:[]}],
+    standings:names.map((label,i)=>({id:"d"+i,label,status:"alive",buybackUsed:false})),
+    totalOwners:names.length,totalEntries:names.length,aliveEntries:names.length
+  };
+}
+
+function jsonp(action, extra={}){
+  return new Promise((resolve,reject)=>{
+    if(!API_URL || API_URL.includes("PASTE_")) return reject(new Error("Backend URL is not configured."));
+    const cb = "tdcb_" + Date.now() + "_" + Math.floor(Math.random()*100000);
+    const script = document.createElement("script");
+    let finished = false;
+
+    const cleanup=()=>{
+      if(finished) return;
+      finished=true;
+      delete window[cb];
+      script.remove();
+      clearTimeout(timer);
+    };
+
+    window[cb]=(data)=>{
+      cleanup();
+      if(data?.ok) resolve(data);
+      else reject(new Error(data?.error || "Backend error"));
+    };
+
+    const u = new URL(API_URL);
+    u.searchParams.set("action", action);
+    u.searchParams.set("callback", cb);
+    Object.entries(extra).forEach(([k,v])=>u.searchParams.set(k,v));
+
+    script.src = u.toString();
+    script.onerror=()=>{cleanup();reject(new Error("Could not reach the backend."));};
+    document.body.appendChild(script);
+
+    const timer=setTimeout(()=>{cleanup();reject(new Error("Backend request timed out."));},12000);
+  });
+}
+
+async function post(action, body={}){
+  if(!API_URL || API_URL.includes("PASTE_")) throw new Error("Backend URL is not configured.");
+  await fetch(API_URL,{
+    method:"POST",
+    mode:"no-cors",
+    headers:{"Content-Type":"text/plain;charset=utf-8"},
+    body:JSON.stringify({action,...body})
+  });
+}
+
+async function refreshLive(){
+  state = await jsonp("bootstrap",{token:OWNER_TOKEN});
+  state.mode="live";
+  render();
+}
+
+async function loadState(){
+  if(API_URL && !API_URL.includes("PASTE_") && OWNER_TOKEN){
+    try{
+      await refreshLive();
+      return;
+    }catch(err){
+      console.error(err);
+      alert("The live league could not load: " + err.message + "\n\nThe app will open in demo mode for now.");
+    }
+  }
+  state=demoState();
+  render();
+}
+
+function activeEntry(){
+  const id=localStorage.getItem("td_active_entry");
+  return state.entries.find(e=>e.id===id) || state.entries[0];
+}
+function setActiveEntry(id){
+  localStorage.setItem("td_active_entry",id);
+  render();
+}
+function usedPlayers(entry){
+  return new Set((entry.picks||[]).map(p=>p.playerId || slug(p.player)));
+}
+function slug(s){
+  return String(s||"").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
+}
+
+function renderHeader(){
+  const e=activeEntry();
+  document.querySelector("#weekNum").textContent=state.league.week;
+  document.querySelector("#deadline").textContent=state.league.deadline;
+  document.querySelector("#aliveCount").textContent=state.aliveEntries;
+  document.querySelector("#pot").textContent="$"+state.league.projectedPot;
+  document.querySelector("#myStatus").textContent=e.status==="alive"?"Alive":"Out";
+  document.querySelector("#pickStatus").textContent=state.league.locked?"LOCKED":"OPEN";
+  document.querySelector("#pickStatus").style.color=state.league.locked?"#ff8993":"#5be69d";
+  document.querySelector("#myStatus").style.color=e.status==="alive"?"#5be69d":"#ff8993";
+  document.querySelector("#profileBtn").textContent=(state.owner?.name||"?").slice(0,2).toUpperCase();
+  document.querySelector("#usedCount").textContent=usedPlayers(e).size+" used";
+  renderEntrySwitcher();
+}
+
+function renderEntrySwitcher(){
+  document.querySelector("#entrySwitcher")?.remove();
+  const panel=document.querySelector("#pickView");
+  const div=document.createElement("div");
+  div.id="entrySwitcher";
+  div.style.cssText="display:flex;gap:7px;overflow:auto;margin:-3px 0 13px;";
+  state.entries.forEach(e=>{
+    const b=document.createElement("button");
+    b.textContent=e.label;
+    b.className="filter"+(e.id===activeEntry().id?" active":"");
+    b.onclick=()=>setActiveEntry(e.id);
+    div.appendChild(b);
+  });
+  panel.insertBefore(div,panel.children[1]);
+}
+
+function renderPlayers(){
+  const e=activeEntry();
+  const used=usedPlayers(e);
+  const q=document.querySelector("#search").value.trim().toLowerCase();
+  const pos=document.querySelector(".filter.active[data-pos]")?.dataset.pos || "ALL";
+  const wrap=document.querySelector("#players");
+  wrap.innerHTML="";
+
+  if(!PLAYER_POOL_META.loaded){
+    wrap.innerHTML='<div class="muted" style="padding:16px 0;">Loading NFL players…</div>';
+    return;
+  }
+
+  let filtered=PLAYERS.filter(p=>
+    (pos==="ALL"||p.position===pos) &&
+    (!q ||
+      p.name.toLowerCase().includes(q) ||
+      p.team.toLowerCase().includes(q))
+  );
+
+  // When searching, show more matching results automatically.
+  const limit=q ? Math.max(120,playerRenderLimit) : playerRenderLimit;
+  const visible=filtered.slice(0,limit);
+
+  const info=document.createElement("div");
+  info.className="muted";
+  info.style.cssText="padding:3px 0 8px;";
+  info.textContent=`${PLAYER_POOL_META.count} active QB/RB/WR/TE loaded • ${filtered.length} match${filtered.length===1?"":"es"}`;
+  wrap.appendChild(info);
+
+  visible.forEach(p=>{
+    const id=String(p.id),name=p.name,team=p.team,position=p.position;
+    const currentPick=(e.picks||[]).find(x=>Number(x.week)===Number(state.league.week));
+
+    // Historical test picks used name-slugs while V10 uses stable Sleeper IDs.
+    // Check both so prior player-use history remains valid.
+    const current=currentPick && (
+      String(currentPick.playerId||"")===id ||
+      slug(currentPick.player)===slug(name)
+    );
+    const prior=used.has(id) || used.has(slug(name));
+    const disabled=(prior&&!current)||state.league.locked||e.status!=="alive";
+    const initials=playerInitials(name);
+
+    const photo=p.photo
+      ? `<img src="${p.photo}" alt="${name}" loading="lazy"
+           style="width:46px;height:46px;object-fit:cover;object-position:top center;border-radius:12px;background:#19273b;"
+           onerror="this.style.display='none';this.nextElementSibling.style.display='grid';">
+         <div class="avatar" style="display:none;">${initials}</div>`
+      : `<div class="avatar">${initials}</div>`;
+
+    wrap.insertAdjacentHTML("beforeend",`
+      <div class="player ${prior&&!current?"disabled":""}">
+        <div style="width:46px;height:46px;flex:0 0 46px;">${photo}</div>
+        <div class="pinfo">
+          <div class="pname">${name}</div>
+          <div class="meta">${team} • ${position} ${current?"• Current pick":prior?"• Already used":""}</div>
+        </div>
+        <button class="select" ${disabled?"disabled":""} data-id="${id}" data-name="${name}">
+          ${current?"Selected":state.league.locked?"Locked":prior?"Used":"Select"}
+        </button>
+      </div>`);
+  });
+
+  if(filtered.length>visible.length){
+    const more=document.createElement("button");
+    more.className="primary";
+    more.style.marginTop="12px";
+    more.textContent=`Load more (${filtered.length-visible.length} remaining)`;
+    more.onclick=()=>{
+      playerRenderLimit+=60;
+      renderPlayers();
+    };
+    wrap.appendChild(more);
+  }
+
+  if(!filtered.length){
+    wrap.insertAdjacentHTML("beforeend",'<div class="muted" style="padding:18px 0;">No players match that search.</div>');
+  }
+
+  document.querySelectorAll(".select:not([disabled])").forEach(b=>{
+    b.onclick=()=>openModal(b.dataset.id,b.dataset.name);
+  });
+}
+
+function statusLabel(status){
+  return status==="alive" ? "ALIVE" : "OUT";
+}
+
+function statusClass(status){
+  return status==="alive" ? "alive" : "out";
+}
+
+function resultLabel(result){
+  if(!result || result==="Pending") return "⏳ Pending";
+  if(result==="TD") return "✅ TD";
+  if(result==="No TD") return "❌ No TD";
+  return result;
+}
+
+function buybackLabel(entry){
+  return entry.buybackUsed ? "Buyback Used" : "Buyback Available";
+}
+
+function buybackBadge(entry){
+  const used=Boolean(entry.buybackUsed);
+  const bg=used ? "#202838" : "#4a3914";
+  const fg=used ? "#aab5c5" : "#f7c66a";
+  return `<span style="display:inline-block;margin-top:5px;padding:3px 7px;border-radius:999px;background:${bg};color:${fg};font-size:8px;font-weight:850;letter-spacing:.35px;">${buybackLabel(entry)}</span>`;
+}
+
+function renderStandings(){
+  const el=document.querySelector("#standings");
+  el.innerHTML="";
+  const reveal=Boolean(state.league.locked);
+
+  [...state.standings]
+    .sort((a,b)=>{
+      const order={alive:0,out:1};
+      return (order[a.status]??9)-(order[b.status]??9)||a.label.localeCompare(b.label);
+    })
+    .forEach((e,i)=>{
+      const pickLine=reveal
+        ? `<div class="meta">${e.currentPick||"No pick submitted"}${e.currentPick ? " • "+resultLabel(e.currentResult) : ""}</div>`
+        : `<div class="meta">Pick hidden until lock</div>`;
+
+      el.insertAdjacentHTML("beforeend",`
+        <div class="row">
+          <div class="rank">${i+1}</div>
+          <div class="rname">
+            ${e.label}
+            ${pickLine}
+            ${buybackBadge(e)}
+          </div>
+          <div class="rstatus ${statusClass(e.status)}">${statusLabel(e.status)}</div>
+        </div>`);
+    });
+
+  document.querySelector("#standingsMeta").textContent=
+    reveal ? `WEEK ${state.league.week} PICKS • LOCKED` : `${state.totalEntries} plays • picks hidden`;
+}
+
+function renderHistory(){
+  const e=activeEntry();
+  const el=document.querySelector("#history");
+  el.innerHTML="";
+  if(!(e.picks||[]).length){
+    el.innerHTML='<div class="muted">No picks submitted yet for this play.</div>';
+    return;
+  }
+  [...e.picks].sort((a,b)=>Number(a.week)-Number(b.week)).forEach(p=>{
+    el.insertAdjacentHTML("beforeend",`
+      <div class="row">
+        <span class="week">WEEK ${p.week}</span>
+        <span class="pick">${p.player}</span>
+        <span class="rstatus">${p.result||"Pending"}</span>
+      </div>`);
+  });
+}
+
+function renderAdmin(){
+  const view=document.querySelector("#adminView");
+  if(!ADMIN_TOKEN){
+    view.innerHTML=`
+      <div class="panel-head"><div><div class="eyebrow">COMMISSIONER</div><h3>Control center</h3></div><span class="admin-badge">PRIVATE</span></div>
+      <div class="admin-login">
+        <p>Enter the private commissioner token from the Settings sheet once. It will stay saved only on this device.</p>
+        <input id="adminTokenInput" class="admin-token" type="password" placeholder="Commissioner token">
+        <button id="saveAdminToken" class="primary">Unlock Commissioner Mode</button>
+      </div>`;
+    document.querySelector("#saveAdminToken").onclick=async()=>{
+      const v=document.querySelector("#adminTokenInput").value.trim();
+      if(!v)return;
+      ADMIN_TOKEN=v;localStorage.setItem("td_admin_token",v);
+      try{await loadAdminState();renderAdmin()}catch(err){
+        ADMIN_TOKEN="";localStorage.removeItem("td_admin_token");alert(err.message);renderAdmin();
+      }
+    };
+    return;
+  }
+  if(!adminState){
+    view.innerHTML=`<div class="panel-head"><div><div class="eyebrow">COMMISSIONER</div><h3>Control center</h3></div></div><div class="muted">Loading commissioner data…</div>`;
+    loadAdminState().then(renderAdmin).catch(err=>{
+      alert("Commissioner access failed: "+err.message);
+      ADMIN_TOKEN="";localStorage.removeItem("td_admin_token");renderAdmin();
+    });
+    return;
+  }
+
+  const entries=adminState.entries||[], owners=adminState.owners||[];
+  const alive=entries.filter(e=>e.status==="alive").length;
+  const buybacks=entries.filter(e=>e.buybackUsed).length;
+  const submitted=entries.filter(e=>e.currentPick).length;
+  const projected=entries.length*Number(state.league.entryFee||20)+buybacks*Number(state.league.buybackFee||10);
+  const locked=String(adminState.league.week_locked).toUpperCase()==="TRUE";
+
+  view.innerHTML=`
+    <div class="panel-head"><div><div class="eyebrow">COMMISSIONER</div><h3>Control center</h3></div><span class="admin-badge">ADMIN</span></div>
+    <div class="admin-grid">
+      <div><span>Plays</span><b>${entries.length}</b></div>
+      <div><span>Alive</span><b>${alive}</b></div>
+      <div><span>Submitted</span><b>${submitted}/${alive}</b></div>
+      <div><span>Pot</span><b>$${projected}</b></div>
+    </div>
+    <div class="admin-toolbar">
+      <button id="addOwnerAdmin">➕ Add Person</button>
+      <button id="addEntryAdmin">➕ Add Play</button>
+      <button id="lockAdmin">${locked?"🔓 Unlock Picks":"🔒 Lock Picks"}</button>
+      <button id="weekAdmin">📅 Set Week</button>
+      <button id="gradeAdmin">🏈 Grade Player</button>
+      <button id="overrideAdmin">🛠 Override Entry</button>
+      <button id="announceAdmin">📣 Announcement</button>
+      <button id="logoutAdmin" class="admin-full">🔐 Forget Admin Token</button>
+    </div>
+    <div id="adminMessage"></div>
+    <div class="admin-section"><h4>PLAYS</h4><div id="adminEntryRows"></div></div>`;
+
+  const rows=document.querySelector("#adminEntryRows");
+  entries.forEach(e=>{
+    rows.insertAdjacentHTML("beforeend",`<div class="admin-row">
+      <div class="admin-row-main"><div class="admin-row-name">${e.label}</div>
+      <div class="admin-row-meta">${e.ownerName} • ${e.status.toUpperCase()} • ${e.currentPick||"No pick"} • ${e.paid?"PAID":"UNPAID"}${e.buybackUsed?" • BUYBACK USED":""}</div></div>
+      <button class="mini-btn ${e.paid?"good":"warn"}" data-paid="${e.id}">${e.paid?"Paid":"Mark Paid"}</button>
+      <button class="mini-btn ${e.buybackUsed?"bad":""}" data-buy="${e.id}" ${(!e.buybackUsed && e.status!=="out")?"disabled":""}>
+        ${e.buybackUsed?"Undo Buyback":e.status==="out"?"Use Buyback":"Available"}
+      </button>
+    </div>`);
+  });
+
+  document.querySelectorAll("[data-paid]").forEach(b=>b.onclick=()=>{
+    const e=adminState.entries.find(x=>x.id===b.dataset.paid);
+    if(!e)return;
+    const previous=e.paid;
+    e.paid=!previous;
+
+    // Immediate visual response.
+    renderAdmin();
+
+    syncAdminInBackground("setPaid",{entryId:e.id,paid:e.paid},()=>{
+      e.paid=previous;
+    });
+  });
+  document.querySelectorAll("[data-buy]").forEach(b=>b.onclick=async()=>{
+    const e=(adminState.entries||[]).find(x=>x.id===b.dataset.buy);
+    if(!e)return;
+
+    if(!e.buybackUsed){
+      if(!confirm(`Use the one-time $${state.league.buybackFee} buyback for ${e.label}?`))return;
+      const paid=confirm("Has the $10 buyback been paid?");
+
+      b.disabled=true;
+      b.textContent="Applying…";
+
+      try{
+        await post("buyback",{adminToken:ADMIN_TOKEN,entryId:e.id,buybackPaid:paid});
+        b.textContent="✅ Applied — updating…";
+        setTimeout(()=>window.location.reload(),1800);
+      }catch(err){
+        b.disabled=false;
+        b.textContent="Buyback";
+        alert(err.message);
+      }
+    }else{
+      if(!confirm(`Undo the buyback for ${e.label}?\n\nThis will return the play to OUT + Buyback Available and clear the buyback-paid flag.`))return;
+
+      b.disabled=true;
+      b.textContent="Undoing…";
+
+      try{
+        await post("undoBuyback",{adminToken:ADMIN_TOKEN,entryId:e.id});
+        b.textContent="✅ Undone — updating…";
+        setTimeout(()=>window.location.reload(),1800);
+      }catch(err){
+        b.disabled=false;
+        b.textContent="Undo Buyback";
+        alert(err.message);
+      }
+    }
+  });
+  document.querySelector("#addOwnerAdmin").onclick=async()=>{
+    const name=prompt("New participant name:");if(!name)return;
+    try{await adminPost("addOwner",{name});alert(`${name} added.`)}catch(err){alert(err.message)}
+  };
+  document.querySelector("#addEntryAdmin").onclick=async()=>{
+    const name=prompt("Owner name to add another play for:");if(!name)return;
+    const o=owners.find(x=>x.name.toLowerCase()===name.toLowerCase());
+    if(!o){alert("Owner not found.");return}
+    try{await adminPost("addEntry",{ownerId:o.id})}catch(err){alert(err.message)}
+  };
+  document.querySelector("#lockAdmin").onclick=()=>{
+    const previous=String(adminState.league.week_locked).toUpperCase()==="TRUE";
+    const next=!previous;
+
+    adminState.league.week_locked=next?"TRUE":"FALSE";
+    state.league.locked=next;
+
+    // Immediate visual response.
+    renderAdmin();
+    renderHeader();
+
+    syncAdminInBackground("lockWeek",{locked:next},()=>{
+      adminState.league.week_locked=previous?"TRUE":"FALSE";
+      state.league.locked=previous;
+    });
+  };
+  document.querySelector("#weekAdmin").onclick=async()=>{
+    const w=Number(prompt("Set current week:",state.league.week));if(!w)return;
+    const deadline=prompt("Deadline label:",state.league.deadline)||state.league.deadline;
+    try{await adminPost("setWeek",{week:w,deadlineLabel:deadline})}catch(err){alert(err.message)}
+  };
+  document.querySelector("#gradeAdmin").onclick=()=>{
+    const existing=document.querySelector("#gradePanel");
+    if(existing){existing.remove();return;}
+
+    // Unique current-week players actually used by at least one entry.
+    const usedPlayers=[...new Set(
+      (adminState.entries||[])
+        .map(e=>String(e.currentPick||"").trim())
+        .filter(Boolean)
+    )].sort((a,b)=>a.localeCompare(b));
+
+    if(!usedPlayers.length){
+      alert("No Week "+state.league.week+" picks have been submitted yet.");
+      return;
+    }
+
+    const panel=document.createElement("div");
+    panel.id="gradePanel";
+    panel.style.cssText="margin-top:10px;padding:12px;border:1px solid #2b3b52;border-radius:12px;background:#0a1422;";
+    panel.innerHTML=`
+      <div style="font-size:9px;color:#8290a3;font-weight:800;letter-spacing:.8px;margin-bottom:7px;">GRADE WEEK ${state.league.week}</div>
+      <select id="gradePlayerSelect" style="width:100%;background:#07111f;color:#fff;border:1px solid #2a3b53;border-radius:10px;padding:11px;margin-bottom:8px;">
+        <option value="">Select utilized player…</option>
+        ${usedPlayers.map(p=>`<option value="${p.replaceAll('"','&quot;')}">${p}</option>`).join("")}
+      </select>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        <button id="gradeTdBtn" style="border:1px solid #245f44;background:#123c2a;color:#5be69d;border-radius:10px;padding:11px;font-weight:900;">✅ TD</button>
+        <button id="gradeNoTdBtn" style="border:1px solid #68343a;background:#351a20;color:#ff8993;border-radius:10px;padding:11px;font-weight:900;">❌ NO TD</button>
+      </div>
+      <div id="gradeUsage" style="font-size:9px;color:#738196;margin-top:8px;"></div>
+    `;
+
+    document.querySelector("#gradeAdmin").insertAdjacentElement("afterend",panel);
+
+    const select=document.querySelector("#gradePlayerSelect");
+    const usage=document.querySelector("#gradeUsage");
+
+    select.onchange=()=>{
+      const player=select.value;
+      if(!player){usage.textContent="";return;}
+      const affected=(adminState.entries||[]).filter(e=>e.currentPick===player);
+      const pending=affected.filter(e=>!e.currentResult||e.currentResult==="Pending").length;
+      usage.textContent=`${affected.length} play${affected.length===1?"":"s"} selected ${player}${pending!==affected.length?` • ${affected.length-pending} already graded`:""}.`;
+    };
+
+    async function submitGrade(scored){
+      const player=select.value;
+      if(!player){alert("Select a player first.");return;}
+
+      const yes=scored ? "TD" : "NO TD";
+      if(!confirm(`Grade ${player} as ${yes}?`))return;
+
+      const td=document.querySelector("#gradeTdBtn");
+      const no=document.querySelector("#gradeNoTdBtn");
+      td.disabled=true;no.disabled=true;
+      td.style.opacity=".5";no.style.opacity=".5";
+      usage.textContent=`Saving ${player} as ${yes}…`;
+
+      try{
+        await post("gradePlayer",{adminToken:ADMIN_TOKEN,playerName:player,scored});
+        usage.textContent="✅ Saved. Updating results…";
+
+        // Keep the reliable V9.5 auto-refresh behavior.
+        setTimeout(()=>window.location.reload(),1800);
+      }catch(err){
+        td.disabled=false;no.disabled=false;
+        td.style.opacity="1";no.style.opacity="1";
+        usage.textContent="";
+        alert("Could not save grading result: "+err.message);
+      }
+    }
+
+    document.querySelector("#gradeTdBtn").onclick=()=>submitGrade(true);
+    document.querySelector("#gradeNoTdBtn").onclick=()=>submitGrade(false);
+  };
+  document.querySelector("#overrideAdmin").onclick=()=>{
+    const existing=document.querySelector("#overridePanel");
+    if(existing){existing.remove();return;}
+
+    const sorted=[...(adminState.entries||[])].sort((a,b)=>a.label.localeCompare(b.label));
+    const panel=document.createElement("div");
+    panel.id="overridePanel";
+    panel.style.cssText="margin-top:10px;padding:12px;border:1px solid #2b3b52;border-radius:12px;background:#0a1422;";
+    panel.innerHTML=`
+      <div style="font-size:9px;color:#8290a3;font-weight:800;letter-spacing:.8px;margin-bottom:8px;">COMMISSIONER OVERRIDE</div>
+
+      <select id="overrideEntrySelect" style="width:100%;background:#07111f;color:#fff;border:1px solid #2a3b53;border-radius:10px;padding:11px;margin-bottom:8px;">
+        <option value="">Select play…</option>
+        ${sorted.map(e=>`<option value="${e.id}">${e.label}</option>`).join("")}
+      </select>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+        <select id="overrideStatus" style="background:#07111f;color:#fff;border:1px solid #2a3b53;border-radius:10px;padding:10px;">
+          <option value="alive">🟢 Alive</option>
+          <option value="out">🔴 Out</option>
+        </select>
+
+        <select id="overrideBuyback" style="background:#07111f;color:#fff;border:1px solid #2a3b53;border-radius:10px;padding:10px;">
+          <option value="available">🟡 Buyback Available</option>
+          <option value="used">⚫ Buyback Used</option>
+        </select>
+      </div>
+
+      <select id="overrideResult" style="width:100%;background:#07111f;color:#fff;border:1px solid #2a3b53;border-radius:10px;padding:10px;margin-bottom:8px;">
+        <option value="KEEP">Keep current week result</option>
+        <option value="Pending">⏳ Pending</option>
+        <option value="TD">✅ TD</option>
+        <option value="No TD">❌ No TD</option>
+      </select>
+
+      <button id="saveOverride" class="primary">Apply Commissioner Override</button>
+      <div style="font-size:9px;color:#738196;margin-top:8px;line-height:1.4;">
+        Use only to correct mistakes, bugs, or special commissioner rulings. This does not edit the selected player.
+      </div>
+    `;
+    document.querySelector("#overrideAdmin").insertAdjacentElement("afterend",panel);
+
+    const entrySelect=document.querySelector("#overrideEntrySelect");
+    entrySelect.onchange=()=>{
+      const e=(adminState.entries||[]).find(x=>x.id===entrySelect.value);
+      if(!e)return;
+      document.querySelector("#overrideStatus").value=e.status==="alive"?"alive":"out";
+      document.querySelector("#overrideBuyback").value=e.buybackUsed?"used":"available";
+      document.querySelector("#overrideResult").value="KEEP";
+    };
+
+    document.querySelector("#saveOverride").onclick=async()=>{
+      const entryId=entrySelect.value;
+      if(!entryId){alert("Select a play first.");return;}
+
+      const e=(adminState.entries||[]).find(x=>x.id===entryId);
+      const status=document.querySelector("#overrideStatus").value;
+      const buybackUsed=document.querySelector("#overrideBuyback").value==="used";
+      const result=document.querySelector("#overrideResult").value;
+
+      if(!confirm(`Override ${e.label}?\n\nStatus: ${status.toUpperCase()}\nBuyback: ${buybackUsed?"USED":"AVAILABLE"}${result!=="KEEP"?`\nWeek result: ${result}`:""}`))return;
+
+      const btn=document.querySelector("#saveOverride");
+      btn.disabled=true;btn.textContent="Saving override…";
+
+      try{
+        await post("overrideEntry",{
+          adminToken:ADMIN_TOKEN,
+          entryId,
+          status,
+          buybackUsed,
+          result
+        });
+
+        btn.textContent="✅ Saved — updating…";
+        setTimeout(()=>window.location.reload(),1800);
+      }catch(err){
+        btn.disabled=false;btn.textContent="Apply Commissioner Override";
+        alert("Override failed: "+err.message);
+      }
+    };
+  };
+
+  document.querySelector("#announceAdmin").onclick=()=>{
+    const sorted=entries.filter(e=>e.currentPick).sort((a,b)=>a.label.localeCompare(b.label));
+    const text=`🏈 TD SURVIVOR — WEEK ${state.league.week}\n\n🔒 PICKS ${locked?"LOCKED":"OPEN"}\n\n`+
+      sorted.map(e=>`${e.label} — ${e.currentPick}`).join("\n")+
+      `\n\n${alive} plays alive • $${projected} pot\n\nGood luck! 🫡`;
+    navigator.clipboard?.writeText(text);
+    document.querySelector("#adminMessage").innerHTML=`<div class="copybox">${text.replaceAll("\n","<br>")}</div><div class="admin-note">Copied to clipboard.</div>`;
+  };
+  document.querySelector("#logoutAdmin").onclick=()=>{
+    if(confirm("Forget the commissioner token on this device?")){
+      ADMIN_TOKEN="";adminState=null;localStorage.removeItem("td_admin_token");renderAdmin();
+    }
+  };
+}
+
+function render(){
+  renderHeader();
+  renderPlayers();
+  renderStandings();
+  renderHistory();
+  renderAdmin();
+}
+
+function openModal(id,name){
+  selectedPlayer={id,name};
+  document.querySelector("#chosen").textContent=name;
+  document.querySelector("#modal").classList.remove("hidden");
+}
+function closeModal(){
+  document.querySelector("#modal").classList.add("hidden");
+  selectedPlayer=null;
+}
+
+document.querySelector("#search").oninput=()=>{playerRenderLimit=60;renderPlayers();};
+
+document.querySelectorAll(".filter[data-pos]").forEach(b=>{
+  b.onclick=()=>{
+    document.querySelectorAll(".filter[data-pos]").forEach(x=>x.classList.remove("active"));
+    b.classList.add("active");
+    playerRenderLimit=60;
+    renderPlayers();
+  };
+});
+
+document.querySelectorAll(".navbtn").forEach(b=>{
+  b.onclick=async()=>{
+    document.querySelectorAll(".navbtn").forEach(x=>x.classList.remove("active"));
+    b.classList.add("active");
+    ["pickView","standingsView","historyView","adminView"].forEach(id=>{
+      document.querySelector("#"+id).classList.toggle("hidden",id!==b.dataset.view);
+    });
+    if(b.dataset.view==="adminView" && ADMIN_TOKEN){
+      try{await loadAdminState();renderAdmin()}catch(err){console.error(err)}
+    }
+  };
+});
+
+document.querySelector("#close").onclick=closeModal;
+document.querySelector(".shade").onclick=closeModal;
+
+document.querySelector("#confirm").onclick=async()=>{
+  if(!selectedPlayer) return;
+  const e=activeEntry();
+
+  if(state.mode!=="live"){
+    const existing=e.picks.find(p=>Number(p.week)===Number(state.league.week));
+    if(existing){
+      existing.player=selectedPlayer.name;
+      existing.playerId=selectedPlayer.id;
+    }else{
+      e.picks.push({week:state.league.week,player:selectedPlayer.name,playerId:selectedPlayer.id,result:"Pending"});
+    }
+    closeModal();
+    render();
+    alert(`Demo pick: ${e.label} → ${selectedPlayer.name}`);
+    return;
+  }
+
+  try{
+    document.querySelector("#confirm").disabled=true;
+    await post("submitPick",{
+      token:OWNER_TOKEN,
+      entryId:e.id,
+      playerId:selectedPlayer.id,
+      playerName:selectedPlayer.name
+    });
+
+    closeModal();
+    await new Promise(r=>setTimeout(r,1000));
+    await refreshLive();
+    alert(`${e.label} Week ${state.league.week} pick saved: ${selectedPlayer.name}`);
+  }catch(err){
+    alert(err.message);
+  }finally{
+    document.querySelector("#confirm").disabled=false;
+  }
+};
+
+
+document.querySelector("#profileBtn").onclick=()=>{
+  if(state.mode==="live"){
+    alert(`Signed in as ${state.owner.name}\n${state.entries.length} play(s) on this account.`);
+  }else{
+    alert("Demo mode. Once you open a private owner invite link, this becomes a live account connected to Google Sheets.");
+  }
+};
+
+(async function startTDApp(){
+  await retireOldServiceWorkers();
+  startUpdateChecks();
+  await loadPlayerPool();
+  await loadState();
+})();
