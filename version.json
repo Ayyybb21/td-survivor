@@ -1,6 +1,6 @@
 {
-  "version": "10.8.4",
-  "script": "app-v1084.js",
+  "version": "10.8.5",
+  "script": "app-v1085.js",
   "released": "2026-08-17",
-  "notes": "Fixes bottom navigation horizontal shift caused by inherited translateX centering."
+  "notes": "Small iPhone UI polish: header safe spacing, hidden version badge, tighter bottom nav."
 }
