@@ -158,9 +158,12 @@ function renderHeader(){
   document.querySelector("#deadline").textContent=state.league.deadline;
   document.querySelector("#aliveCount").textContent=state.aliveEntries;
   document.querySelector("#pot").textContent="$"+state.league.projectedPot;
-  document.querySelector("#myStatus").textContent=e.status==="alive"?"Alive":"Out";
+  document.querySelector("#myStatus").textContent=
+    e.status==="alive"?"Alive":e.status==="buyback_needed"?"Buyback":"Out";
   document.querySelector("#pickStatus").textContent=state.league.locked?"LOCKED":"OPEN";
   document.querySelector("#pickStatus").style.color=state.league.locked?"#ff8993":"#5be69d";
+  document.querySelector("#myStatus").style.color=
+    e.status==="alive"?"#5be69d":e.status==="buyback_needed"?"#f7c66a":"#ff8993";
   document.querySelector("#profileBtn").textContent=(state.owner?.name||"?").slice(0,2).toUpperCase();
   document.querySelector("#usedCount").textContent=usedPlayers(e).size+" used";
   renderEntrySwitcher();
@@ -215,20 +218,48 @@ function renderPlayers(){
   });
 }
 
+function statusLabel(status){
+  if(status==="alive") return "ALIVE";
+  if(status==="buyback_needed") return "BUYBACK";
+  return "OUT";
+}
+function statusClass(status){
+  if(status==="alive") return "alive";
+  if(status==="buyback_needed") return "";
+  return "out";
+}
+function resultLabel(result){
+  if(!result || result==="Pending") return "⏳ Pending";
+  if(result==="TD") return "✅ TD";
+  if(result==="No TD") return "❌ No TD";
+  return result;
+}
+
 function renderStandings(){
   const el=document.querySelector("#standings");
   el.innerHTML="";
+  const reveal=Boolean(state.league.locked);
+
   [...state.standings]
-    .sort((a,b)=>a.status.localeCompare(b.status)||a.label.localeCompare(b.label))
+    .sort((a,b)=>{
+      const order={alive:0,buyback_needed:1,out:2};
+      return (order[a.status]??9)-(order[b.status]??9)||a.label.localeCompare(b.label);
+    })
     .forEach((e,i)=>{
+      const pickLine=reveal
+        ? `<div class="meta">${e.currentPick||"No pick submitted"}${e.currentPick ? " • "+resultLabel(e.currentResult) : ""}</div>`
+        : `<div class="meta">Pick hidden until lock</div>`;
+      const color=e.status==="buyback_needed" ? 'style="color:#f7c66a"' : "";
       el.insertAdjacentHTML("beforeend",`
         <div class="row">
           <div class="rank">${i+1}</div>
-          <div class="rname">${e.label}</div>
-          <div class="rstatus ${e.status==="alive"?"alive":"out"}">${e.status==="alive"?"ALIVE":"OUT"}</div>
+          <div class="rname">${e.label}${pickLine}</div>
+          <div class="rstatus ${statusClass(e.status)}" ${color}>${statusLabel(e.status)}</div>
         </div>`);
     });
-  document.querySelector("#standingsMeta").textContent=state.totalEntries+" plays • "+state.totalOwners+" owners";
+
+  document.querySelector("#standingsMeta").textContent=
+    reveal ? `WEEK ${state.league.week} PICKS • LOCKED` : `${state.totalEntries} plays • picks hidden`;
 }
 
 function renderHistory(){
