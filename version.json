@@ -1,6 +1,6 @@
 {
-  "version": "10.13.8",
-  "script": "app-v10138.js",
+  "version": "10.14.0",
+  "script": "app-v10140.js",
   "released": "2026-08-17",
-  "notes": "Fixes post-save cache typo and prevents client UI/cache errors from falsely reporting an acknowledged backend pick as unsaved."
+  "notes": "Adds Commissioner Mass Grade: grade multiple utilized players TD/No TD in one batch with safeguards and League Chat announcements."
 }
