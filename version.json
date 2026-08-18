@@ -1,6 +1,6 @@
 {
-  "version": "10.8.5",
-  "script": "app-v1085.js",
+  "version": "10.8.6",
+  "script": "app-v1086.js",
   "released": "2026-08-17",
-  "notes": "Small iPhone UI polish: header safe spacing, hidden version badge, tighter bottom nav."
+  "notes": "Prevents iPhone Safari auto-zoom on player search, chat, and other form fields."
 }
