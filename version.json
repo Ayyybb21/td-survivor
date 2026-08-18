@@ -1,6 +1,6 @@
 {
-  "version": "10.9.0",
-  "script": "app-v109.js",
+  "version": "10.9.1",
+  "script": "app-v1091.js",
   "released": "2026-08-17",
-  "notes": "Automatically posts the weekly rollover recap to League Chat after Advance Week."
+  "notes": "Fix automatic week-advance chat recap by posting from the browser with admin-authenticated system proof."
 }
