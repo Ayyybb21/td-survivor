@@ -1,6 +1,6 @@
 {
-  "version": "10.13.2",
-  "script": "app-v10132.js",
+  "version": "10.13.3",
+  "script": "app-v10133.js",
   "released": "2026-08-17",
-  "notes": "Fixes green TD history coloring and moves the league header below the iPhone status bar."
+  "notes": "Tightens iPhone header spacing while preserving safe-area clearance."
 }
