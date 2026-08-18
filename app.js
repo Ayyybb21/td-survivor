@@ -30,13 +30,8 @@ async function loadAdminState(){
 async function adminPost(action, body={}){
   if(!ADMIN_TOKEN) throw new Error("Commissioner token is not saved.");
   await post(action,{adminToken:ADMIN_TOKEN,...body});
-
-  // Apps Script finishes the Sheet write before doPost returns, so there is no
-  // need for the old fixed 700ms delay or a full participant-state reload.
-  // Refresh only the commissioner data needed by this screen.
   await loadAdminState();
 
-  // Keep the locally-rendered league header in sync for admin settings changes.
   if(action==="lockWeek") state.league.locked=Boolean(body.locked);
   if(action==="setWeek"){
     state.league.week=Number(body.week);
@@ -46,6 +41,24 @@ async function adminPost(action, body={}){
 
   renderAdmin();
   renderHeader();
+}
+
+// V8.2: optimistic admin actions.
+// The screen updates FIRST, then Google Sheets syncs in the background.
+function syncAdminInBackground(action, body, rollback){
+  post(action,{adminToken:ADMIN_TOKEN,...body})
+    .then(()=>loadAdminState())
+    .then(()=>{
+      // Reconcile with the real backend once it catches up.
+      renderAdmin();
+      renderHeader();
+    })
+    .catch(err=>{
+      if(typeof rollback==="function") rollback();
+      renderAdmin();
+      renderHeader();
+      alert("The change could not be saved: "+err.message);
+    });
 }
 
 function demoState(){
@@ -302,19 +315,33 @@ function renderAdmin(){
     </div>`);
   });
 
-  document.querySelectorAll("[data-paid]").forEach(b=>b.onclick=async()=>{
-    const e=entries.find(x=>x.id===b.dataset.paid);
-    const oldText=b.textContent;
-    b.disabled=true;
-    b.textContent=e.paid?"Saving…":"Paid ✓";
-    try{await adminPost("setPaid",{entryId:e.id,paid:!e.paid})}
-    catch(err){b.disabled=false;b.textContent=oldText;alert(err.message)}
+  document.querySelectorAll("[data-paid]").forEach(b=>b.onclick=()=>{
+    const e=adminState.entries.find(x=>x.id===b.dataset.paid);
+    if(!e)return;
+    const previous=e.paid;
+    e.paid=!previous;
+
+    // Immediate visual response.
+    renderAdmin();
+
+    syncAdminInBackground("setPaid",{entryId:e.id,paid:e.paid},()=>{
+      e.paid=previous;
+    });
   });
-  document.querySelectorAll("[data-buy]").forEach(b=>b.onclick=async()=>{
-    const e=entries.find(x=>x.id===b.dataset.buy);
+  document.querySelectorAll("[data-buy]").forEach(b=>b.onclick=()=>{
+    const e=adminState.entries.find(x=>x.id===b.dataset.buy);
+    if(!e)return;
     if(!confirm(`Use the one-time $${state.league.buybackFee} buyback for ${e.label}?`))return;
     const paid=confirm("Has the $10 buyback been paid?");
-    try{await adminPost("buyback",{entryId:e.id,buybackPaid:paid})}catch(err){alert(err.message)}
+
+    const prevStatus=e.status, prevUsed=e.buybackUsed, prevPaid=e.buybackPaid;
+    e.status="alive"; e.buybackUsed=true; e.buybackPaid=paid;
+
+    renderAdmin();
+
+    syncAdminInBackground("buyback",{entryId:e.id,buybackPaid:paid},()=>{
+      e.status=prevStatus; e.buybackUsed=prevUsed; e.buybackPaid=prevPaid;
+    });
   });
 
   document.querySelector("#addOwnerAdmin").onclick=async()=>{
@@ -327,12 +354,21 @@ function renderAdmin(){
     if(!o){alert("Owner not found.");return}
     try{await adminPost("addEntry",{ownerId:o.id})}catch(err){alert(err.message)}
   };
-  document.querySelector("#lockAdmin").onclick=async()=>{
-    const b=document.querySelector("#lockAdmin");
-    b.disabled=true;
-    b.textContent=locked?"🔓 Unlocking…":"🔒 Locking…";
-    try{await adminPost("lockWeek",{locked:!locked})}
-    catch(err){b.disabled=false;b.textContent=locked?"🔓 Unlock Picks":"🔒 Lock Picks";alert(err.message)}
+  document.querySelector("#lockAdmin").onclick=()=>{
+    const previous=String(adminState.league.week_locked).toUpperCase()==="TRUE";
+    const next=!previous;
+
+    adminState.league.week_locked=next?"TRUE":"FALSE";
+    state.league.locked=next;
+
+    // Immediate visual response.
+    renderAdmin();
+    renderHeader();
+
+    syncAdminInBackground("lockWeek",{locked:next},()=>{
+      adminState.league.week_locked=previous?"TRUE":"FALSE";
+      state.league.locked=previous;
+    });
   };
   document.querySelector("#weekAdmin").onclick=async()=>{
     const w=Number(prompt("Set current week:",state.league.week));if(!w)return;
