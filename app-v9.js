@@ -421,13 +421,77 @@ function renderAdmin(){
     const deadline=prompt("Deadline label:",state.league.deadline)||state.league.deadline;
     try{await adminPost("setWeek",{week:w,deadlineLabel:deadline})}catch(err){alert(err.message)}
   };
-  document.querySelector("#gradeAdmin").onclick=async()=>{
+  document.querySelector("#gradeAdmin").onclick=()=>{
     const player=prompt("Player name to grade exactly as shown in picks (example: Derrick Henry):");if(!player)return;
     const scored=confirm(`Did ${player} score a rushing or receiving TD?
 
 OK = TD
 Cancel = No TD`);
-    try{await adminPost("gradePlayer",{playerName:player,scored})}catch(err){alert(err.message)}
+
+    const normalized=player.trim().toLowerCase();
+    const result=scored?"TD":"No TD";
+
+    // Snapshot affected rows so we can roll back if Google fails.
+    const affectedAdmin=(adminState.entries||[]).filter(e=>
+      String(e.currentPick||"").trim().toLowerCase()===normalized
+    ).map(e=>({
+      id:e.id,
+      status:e.status,
+      currentResult:e.currentResult
+    }));
+
+    const affectedStandings=(state.standings||[]).filter(e=>
+      String(e.currentPick||"").trim().toLowerCase()===normalized
+    ).map(e=>({
+      id:e.id,
+      status:e.status,
+      currentResult:e.currentResult
+    }));
+
+    // Update commissioner data immediately.
+    (adminState.entries||[]).forEach(e=>{
+      if(String(e.currentPick||"").trim().toLowerCase()!==normalized)return;
+      e.currentResult=result;
+      if(!scored){
+        e.status=e.buybackUsed?"out":"buyback_needed";
+      }
+    });
+
+    // Update public standings immediately.
+    (state.standings||[]).forEach(e=>{
+      if(String(e.currentPick||"").trim().toLowerCase()!==normalized)return;
+      e.currentResult=result;
+      const adminEntry=(adminState.entries||[]).find(x=>x.id===e.id);
+      if(!scored){
+        e.status=adminEntry?.buybackUsed?"out":"buyback_needed";
+      }
+    });
+
+    // Update this owner's own play/history immediately too.
+    (state.entries||[]).forEach(e=>{
+      const p=(e.picks||[]).find(p=>
+        Number(p.week)===Number(state.league.week) &&
+        String(p.player||"").trim().toLowerCase()===normalized
+      );
+      if(!p)return;
+      p.result=result;
+      if(!scored){
+        e.status=e.buybackUsed?"out":"buyback_needed";
+      }
+    });
+
+    renderAllLiveViews();
+
+    syncAdminInBackground("gradePlayer",{playerName:player,scored},()=>{
+      affectedAdmin.forEach(old=>{
+        const e=(adminState.entries||[]).find(x=>x.id===old.id);
+        if(e){e.status=old.status;e.currentResult=old.currentResult;}
+      });
+      affectedStandings.forEach(old=>{
+        const e=(state.standings||[]).find(x=>x.id===old.id);
+        if(e){e.status=old.status;e.currentResult=old.currentResult;}
+      });
+    });
   };
   document.querySelector("#announceAdmin").onclick=()=>{
     const sorted=entries.filter(e=>e.currentPick).sort((a,b)=>a.label.localeCompare(b.label));
