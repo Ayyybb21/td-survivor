@@ -1,6 +1,6 @@
 {
-  "version": "10.15.3",
-  "script": "app-v10153.js",
+  "version": "10.15.4",
+  "script": "app-v10154.js",
   "released": "2026-08-17",
-  "notes": "Commissioner Remove Person and Remove Play now use dropdown selectors instead of manual text entry."
+  "notes": "Adds post-join welcome/onboarding with entry total, buyback explanation, weekly duties, and device-specific Home Screen app installation instructions."
 }
