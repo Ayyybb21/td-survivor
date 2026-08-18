@@ -1,6 +1,6 @@
 {
-  "version": "10.2.1",
-  "script": "app-v102.js",
+  "version": "10.3.0",
+  "script": "app-v103.js",
   "released": "2026-08-17",
-  "notes": "Cache-busted V10.2 with all standings helpers included."
+  "notes": "Clean up Sleeper player ranking anomalies while preserving popularity ordering."
 }
