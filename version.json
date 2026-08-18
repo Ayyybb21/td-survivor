@@ -1,6 +1,6 @@
 {
-  "version": "10.15.4",
-  "script": "app-v10154.js",
+  "version": "10.15.5",
+  "script": "app-v10155.js",
   "released": "2026-08-17",
-  "notes": "Adds post-join welcome/onboarding with entry total, buyback explanation, weekly duties, and device-specific Home Screen app installation instructions."
+  "notes": "Uniform typography across all four dashboard values; Out status now correctly renders red instead of being overridden green."
 }
