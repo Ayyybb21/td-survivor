@@ -1,6 +1,6 @@
 {
-  "version": "10.10.0",
-  "script": "app-v1010.js",
+  "version": "10.11.0",
+  "script": "app-v1011.js",
   "released": "2026-08-17",
-  "notes": "Participant buyback decision, immediate-next-week expiration, and live chat announcements."
+  "notes": "Automated League Chat announcements for Picks Locked/Reopened and grouped player grading/eliminations."
 }
