@@ -1,6 +1,6 @@
 {
-  "version": "10.6.0",
-  "script": "app-v106.js",
+  "version": "10.6.1",
+  "script": "app-v1061.js",
   "released": "2026-08-17",
-  "notes": "Preseason/new-season reset wizard preserving accounts and invite tokens."
+  "notes": "Adds a small always-visible app version badge for update verification."
 }
