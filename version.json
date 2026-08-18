@@ -1,6 +1,6 @@
 {
-  "version": "10.13.5",
-  "script": "app-v10135.js",
+  "version": "10.13.6",
+  "script": "app-v10136.js",
   "released": "2026-08-17",
-  "notes": "Prime Time cleanup: removes remaining navy styling from Chat/Admin and fixes extra bottom space in Chat."
+  "notes": "Exact Chat/Admin Prime Time restyle: graphite/orange chat, flush bottom nav, orange admin framing and semantic status colors."
 }
