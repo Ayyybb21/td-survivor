@@ -1,6 +1,6 @@
 {
-  "version": "10.11.1",
-  "script": "app-v10111.js",
+  "version": "10.11.2",
+  "script": "app-v10112.js",
   "released": "2026-08-17",
-  "notes": "Makes commissioner loading resilient to transient Apps Script/JSONP failures and preserves valid admin token."
+  "notes": "Adds subtle unread League Chat notification badge that persists across app closes."
 }
