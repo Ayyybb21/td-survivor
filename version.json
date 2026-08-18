@@ -1,6 +1,6 @@
 {
-  "version": "10.11.0",
-  "script": "app-v1011.js",
+  "version": "10.11.1",
+  "script": "app-v10111.js",
   "released": "2026-08-17",
-  "notes": "Automated League Chat announcements for Picks Locked/Reopened and grouped player grading/eliminations."
+  "notes": "Makes commissioner loading resilient to transient Apps Script/JSONP failures and preserves valid admin token."
 }
