@@ -1,6 +1,6 @@
 {
-  "version": "10.8.3",
-  "script": "app-v1083.js",
+  "version": "10.8.4",
+  "script": "app-v1084.js",
   "released": "2026-08-17",
-  "notes": "Fix five-tab bottom navigation sizing and visibility on iPhone."
+  "notes": "Fixes bottom navigation horizontal shift caused by inherited translateX centering."
 }
