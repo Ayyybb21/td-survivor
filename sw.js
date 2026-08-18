@@ -1,27 +1,12 @@
-const CACHE="td-survivor-v9.12";
-const ASSETS=["./","./index.html","./styles.css","./config.js","./app-v912.js","./manifest.webmanifest","./icon.svg"];
-
-self.addEventListener("install",event=>{
-  self.skipWaiting();
-  event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(ASSETS)));
-});
-
+// TD Survivor V10 retirement service worker.
+// V10 no longer relies on offline asset caching; the app uses a version manifest
+// so installed Home Screen copies can fetch new builds without reinstalling.
+self.addEventListener("install",()=>self.skipWaiting());
 self.addEventListener("activate",event=>{
   event.waitUntil(
     caches.keys()
-      .then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k))))
+      .then(keys=>Promise.all(keys.filter(k=>k.startsWith("td-survivor-")).map(k=>caches.delete(k))))
       .then(()=>self.clients.claim())
   );
 });
-
-self.addEventListener("fetch",event=>{
-  event.respondWith(
-    fetch(event.request)
-      .then(response=>{
-        const copy=response.clone();
-        caches.open(CACHE).then(cache=>cache.put(event.request,copy));
-        return response;
-      })
-      .catch(()=>caches.match(event.request))
-  );
-});
+self.addEventListener("fetch",()=>{});

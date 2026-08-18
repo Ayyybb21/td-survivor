@@ -1,0 +1,6 @@
+{
+  "version": "10.0.0",
+  "script": "app-v10.js",
+  "released": "2026-08-17",
+  "notes": "Automatic updates and live NFL player pool with headshots."
+}
