@@ -1,6 +1,6 @@
 {
-  "version": "10.15.1",
-  "script": "app-v10151.js",
+  "version": "10.15.2",
+  "script": "app-v10152.js",
   "released": "2026-08-17",
-  "notes": "Self-join league invite: one generic invite link lets a new participant enter their own name and choose 1\u20135 plays, then creates their owner account and logs them in automatically."
+  "notes": "Join-screen copy/pricing update, Buy Back card fit fix, and commissioner Remove Play / Remove Person controls with destructive-action confirmations."
 }
