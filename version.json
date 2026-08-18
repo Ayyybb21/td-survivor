@@ -1,6 +1,6 @@
 {
-  "version": "10.8.1",
-  "script": "app-v1081.js",
+  "version": "10.8.2",
+  "script": "app-v1082.js",
   "released": "2026-08-17",
-  "notes": "Fixes chat send authorization, mobile viewport, and five-tab single-row navigation."
+  "notes": "Fix chat authorization response and keep five-tab nav fully visible on iPhone."
 }
