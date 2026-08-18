@@ -1,6 +1,6 @@
 {
-  "version": "10.13.0",
-  "script": "app-v10130.js",
+  "version": "10.13.1",
+  "script": "app-v10131.js",
   "released": "2026-08-17",
-  "notes": "Prime Time theme: graphite/black base, electric orange brand accent, condensed sports typography, semantic green/yellow/red states."
+  "notes": "Pick History now colors successful TD scorer names green and unsuccessful picks red."
 }
