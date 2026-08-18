@@ -1,6 +1,6 @@
 {
-  "version": "10.15.6",
-  "script": "app-v10156.js",
-  "released": "2026-08-17",
-  "notes": "Rebuilds Buy Back card from the exact Your Status card structure so title/value align perfectly; all four dashboard values use the same 12px font while condensed tracking keeps AVAILABLE inside its card."
+  "version": "10.15.7",
+  "script": "app-v10157.js",
+  "released": "2026-08-18",
+  "notes": "True Black theme rollout plus TD Survivor #11 home-screen icon assets for iPhone and Android."
 }
