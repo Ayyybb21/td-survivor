@@ -1,5 +1,5 @@
-const CACHE="td-survivor-v9.11";
-const ASSETS=["./","./index.html","./styles.css","./config.js","./app-v911.js","./manifest.webmanifest","./icon.svg"];
+const CACHE="td-survivor-v9.12";
+const ASSETS=["./","./index.html","./styles.css","./config.js","./app-v912.js","./manifest.webmanifest","./icon.svg"];
 
 self.addEventListener("install",event=>{
   self.skipWaiting();
