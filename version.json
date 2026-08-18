@@ -1,6 +1,6 @@
 {
-  "version": "10.5.2",
-  "script": "app-v1052.js",
+  "version": "10.5.3",
+  "script": "app-v1053.js",
   "released": "2026-08-17",
-  "notes": "Clear eliminated-play UI: greyed player list, OUT buttons, elimination banner."
+  "notes": "Restore standings helper functions removed during eliminated-play UI patch."
 }
