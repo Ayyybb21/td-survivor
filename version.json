@@ -1,6 +1,6 @@
 {
-  "version": "10.11.3",
-  "script": "app-v10113.js",
+  "version": "10.11.4",
+  "script": "app-v10114.js",
   "released": "2026-08-17",
-  "notes": "Retries slow Apps Script live bootstrap and uses last-known live state instead of dropping to Demo Mode."
+  "notes": "Faster update detection: immediate foreground checks, 60-second polling, and forced latest-script prefetch."
 }
