@@ -1,6 +1,6 @@
 {
-  "version": "10.14.1",
-  "script": "app-v10141.js",
+  "version": "10.15.0",
+  "script": "app-v10150.js",
   "released": "2026-08-17",
-  "notes": "Hardens safe commissioner writes against transient iPhone Load failed errors; Lock Picks now saves before UI/chat changes and Mass Grade retries idempotent grade writes."
+  "notes": "Adds commissioner Invite / Share flow for generating, copying and sharing each participant's private TD Survivor link."
 }
