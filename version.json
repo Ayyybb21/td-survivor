@@ -1,6 +1,6 @@
 {
-  "version": "10.8.6",
-  "script": "app-v1086.js",
+  "version": "10.9.0",
+  "script": "app-v109.js",
   "released": "2026-08-17",
-  "notes": "Prevents iPhone Safari auto-zoom on player search, chat, and other form fields."
+  "notes": "Automatically posts the weekly rollover recap to League Chat after Advance Week."
 }
