@@ -1,6 +1,6 @@
 {
-  "version": "10.4.1",
-  "script": "app-v1041.js",
+  "version": "10.5.0",
+  "script": "app-v105.js",
   "released": "2026-08-17",
-  "notes": "Commissioner Set/Edit Pick player typeahead suggestions with top 5 matches."
+  "notes": "Safe weekly rollover: Advance Week with grading/submission checks and history preservation."
 }
