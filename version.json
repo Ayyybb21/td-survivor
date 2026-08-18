@@ -1,6 +1,6 @@
 {
-  "version": "10.11.4",
-  "script": "app-v10114.js",
+  "version": "10.12.0",
+  "script": "app-v10120.js",
   "released": "2026-08-17",
-  "notes": "Faster update detection: immediate foreground checks, 60-second polling, and forced latest-script prefetch."
+  "notes": "Dynamic pick-status hero, Buy Back bucket, and league-wide scouting history with per-play available players."
 }
