@@ -1,6 +1,6 @@
 {
-  "version": "10.7.0",
-  "script": "app-v107.js",
+  "version": "10.8.0",
+  "script": "app-v108.js",
   "released": "2026-08-17",
-  "notes": "Missing Pick Tracker and one-tap reminder center for commissioner."
+  "notes": "League Chat foundation."
 }
