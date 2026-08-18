@@ -30,33 +30,35 @@ async function loadAdminState(){
 async function adminPost(action, body={}){
   if(!ADMIN_TOKEN) throw new Error("Commissioner token is not saved.");
   await post(action,{adminToken:ADMIN_TOKEN,...body});
-  await loadAdminState();
 
-  if(action==="lockWeek") state.league.locked=Boolean(body.locked);
-  if(action==="setWeek"){
-    state.league.week=Number(body.week);
-    if(body.deadlineLabel) state.league.deadline=body.deadlineLabel;
-    state.league.locked=false;
-  }
+  // Refresh BOTH data layers after confirmed commissioner writes:
+  // participant/public league state + private commissioner state.
+  await Promise.all([refreshLive(), loadAdminState()]);
 
   renderAdmin();
   renderHeader();
+  renderStandings();
+  renderHistory();
 }
 
 // V8.2: optimistic admin actions.
 // The screen updates FIRST, then Google Sheets syncs in the background.
 function syncAdminInBackground(action, body, rollback){
   post(action,{adminToken:ADMIN_TOKEN,...body})
-    .then(()=>loadAdminState())
+    .then(()=>Promise.all([refreshLive(), loadAdminState()]))
     .then(()=>{
-      // Reconcile with the real backend once it catches up.
+      // Reconcile both commissioner and participant/public views.
       renderAdmin();
       renderHeader();
+      renderStandings();
+      renderHistory();
     })
     .catch(err=>{
       if(typeof rollback==="function") rollback();
       renderAdmin();
       renderHeader();
+      renderStandings();
+      renderHistory();
       alert("The change could not be saved: "+err.message);
     });
 }
