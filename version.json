@@ -1,6 +1,6 @@
 {
-  "version": "10.13.1",
-  "script": "app-v10131.js",
+  "version": "10.13.2",
+  "script": "app-v10132.js",
   "released": "2026-08-17",
-  "notes": "Pick History now colors successful TD scorer names green and unsuccessful picks red."
+  "notes": "Fixes green TD history coloring and moves the league header below the iPhone status bar."
 }
