@@ -31,34 +31,47 @@ async function adminPost(action, body={}){
   if(!ADMIN_TOKEN) throw new Error("Commissioner token is not saved.");
   await post(action,{adminToken:ADMIN_TOKEN,...body});
 
-  // Refresh BOTH data layers after confirmed commissioner writes:
-  // participant/public league state + private commissioner state.
-  await Promise.all([refreshLive(), loadAdminState()]);
+  // Do not block the UI waiting for Google Sheets propagation.
+  // Reconcile repeatedly in the background instead.
+  scheduleLiveReconcile();
+}
 
+// V8.2: optimistic admin actions.
+// The screen updates FIRST, then Google Sheets syncs in the background.
+function renderAllLiveViews(){
   renderAdmin();
   renderHeader();
   renderStandings();
   renderHistory();
 }
 
-// V8.2: optimistic admin actions.
-// The screen updates FIRST, then Google Sheets syncs in the background.
+// Google Apps Script POSTs are sent with no-cors. On some browsers, the fetch
+// promise can resolve before the Sheet mutation is visible to a subsequent read.
+// Reconcile several times in the background so users never need to manually refresh.
+function scheduleLiveReconcile(){
+  const delays=[700,1800,3500,6000];
+  delays.forEach(ms=>{
+    setTimeout(async()=>{
+      try{
+        await Promise.all([refreshLive(), loadAdminState()]);
+        renderAllLiveViews();
+      }catch(err){
+        console.warn("Background reconcile failed",err);
+      }
+    },ms);
+  });
+}
+
 function syncAdminInBackground(action, body, rollback){
   post(action,{adminToken:ADMIN_TOKEN,...body})
-    .then(()=>Promise.all([refreshLive(), loadAdminState()]))
     .then(()=>{
-      // Reconcile both commissioner and participant/public views.
-      renderAdmin();
-      renderHeader();
-      renderStandings();
-      renderHistory();
+      // Start staggered refreshes immediately; one of these will occur after the
+      // Google Sheet write has actually become visible.
+      scheduleLiveReconcile();
     })
     .catch(err=>{
       if(typeof rollback==="function") rollback();
-      renderAdmin();
-      renderHeader();
-      renderStandings();
-      renderHistory();
+      renderAllLiveViews();
       alert("The change could not be saved: "+err.message);
     });
 }
