@@ -173,12 +173,10 @@ function renderHeader(){
   document.querySelector("#deadline").textContent=state.league.deadline;
   document.querySelector("#aliveCount").textContent=state.aliveEntries;
   document.querySelector("#pot").textContent="$"+state.league.projectedPot;
-  document.querySelector("#myStatus").textContent=
-    e.status==="alive"?"Alive":e.status==="buyback_needed"?"Buyback":"Out";
+  document.querySelector("#myStatus").textContent=e.status==="alive"?"Alive":"Out";
   document.querySelector("#pickStatus").textContent=state.league.locked?"LOCKED":"OPEN";
   document.querySelector("#pickStatus").style.color=state.league.locked?"#ff8993":"#5be69d";
-  document.querySelector("#myStatus").style.color=
-    e.status==="alive"?"#5be69d":e.status==="buyback_needed"?"#f7c66a":"#ff8993";
+  document.querySelector("#myStatus").style.color=e.status==="alive"?"#5be69d":"#ff8993";
   document.querySelector("#profileBtn").textContent=(state.owner?.name||"?").slice(0,2).toUpperCase();
   document.querySelector("#usedCount").textContent=usedPlayers(e).size+" used";
   renderEntrySwitcher();
@@ -234,14 +232,19 @@ function renderPlayers(){
 }
 
 function statusLabel(status){
-  if(status==="alive") return "ALIVE";
-  if(status==="buyback_needed") return "BUYBACK";
-  return "OUT";
+  return status==="alive" ? "ALIVE" : "OUT";
 }
 function statusClass(status){
-  if(status==="alive") return "alive";
-  if(status==="buyback_needed") return "";
-  return "out";
+  return status==="alive" ? "alive" : "out";
+}
+function buybackLabel(entry){
+  return entry.buybackUsed ? "Buyback Used" : "Buyback Available";
+}
+function buybackBadge(entry){
+  const used=entry.buybackUsed;
+  const bg=used?"#202838":"#4a3914";
+  const fg=used?"#aab5c5":"#f7c66a";
+  return `<span style="display:inline-block;margin-top:5px;padding:3px 7px;border-radius:999px;background:${bg};color:${fg};font-size:8px;font-weight:850;letter-spacing:.35px;">${buybackLabel(entry)}</span>`;
 }
 function resultLabel(result){
   if(!result || result==="Pending") return "⏳ Pending";
@@ -257,19 +260,23 @@ function renderStandings(){
 
   [...state.standings]
     .sort((a,b)=>{
-      const order={alive:0,buyback_needed:1,out:2};
+      const order={alive:0,out:1};
       return (order[a.status]??9)-(order[b.status]??9)||a.label.localeCompare(b.label);
     })
     .forEach((e,i)=>{
       const pickLine=reveal
         ? `<div class="meta">${e.currentPick||"No pick submitted"}${e.currentPick ? " • "+resultLabel(e.currentResult) : ""}</div>`
         : `<div class="meta">Pick hidden until lock</div>`;
-      const color=e.status==="buyback_needed" ? 'style="color:#f7c66a"' : "";
+
       el.insertAdjacentHTML("beforeend",`
         <div class="row">
           <div class="rank">${i+1}</div>
-          <div class="rname">${e.label}${pickLine}</div>
-          <div class="rstatus ${statusClass(e.status)}" ${color}>${statusLabel(e.status)}</div>
+          <div class="rname">
+            ${e.label}
+            ${pickLine}
+            ${buybackBadge(e)}
+          </div>
+          <div class="rstatus ${statusClass(e.status)}">${statusLabel(e.status)}</div>
         </div>`);
     });
 
@@ -345,6 +352,7 @@ function renderAdmin(){
       <button id="lockAdmin">${locked?"🔓 Unlock Picks":"🔒 Lock Picks"}</button>
       <button id="weekAdmin">📅 Set Week</button>
       <button id="gradeAdmin">🏈 Grade Player</button>
+      <button id="overrideAdmin">🛠 Override Entry</button>
       <button id="announceAdmin">📣 Announcement</button>
       <button id="logoutAdmin" class="admin-full">🔐 Forget Admin Token</button>
     </div>
@@ -496,6 +504,89 @@ function renderAdmin(){
     document.querySelector("#gradeTdBtn").onclick=()=>submitGrade(true);
     document.querySelector("#gradeNoTdBtn").onclick=()=>submitGrade(false);
   };
+  document.querySelector("#overrideAdmin").onclick=()=>{
+    const existing=document.querySelector("#overridePanel");
+    if(existing){existing.remove();return;}
+
+    const sorted=[...(adminState.entries||[])].sort((a,b)=>a.label.localeCompare(b.label));
+    const panel=document.createElement("div");
+    panel.id="overridePanel";
+    panel.style.cssText="margin-top:10px;padding:12px;border:1px solid #2b3b52;border-radius:12px;background:#0a1422;";
+    panel.innerHTML=`
+      <div style="font-size:9px;color:#8290a3;font-weight:800;letter-spacing:.8px;margin-bottom:8px;">COMMISSIONER OVERRIDE</div>
+
+      <select id="overrideEntrySelect" style="width:100%;background:#07111f;color:#fff;border:1px solid #2a3b53;border-radius:10px;padding:11px;margin-bottom:8px;">
+        <option value="">Select play…</option>
+        ${sorted.map(e=>`<option value="${e.id}">${e.label}</option>`).join("")}
+      </select>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+        <select id="overrideStatus" style="background:#07111f;color:#fff;border:1px solid #2a3b53;border-radius:10px;padding:10px;">
+          <option value="alive">🟢 Alive</option>
+          <option value="out">🔴 Out</option>
+        </select>
+
+        <select id="overrideBuyback" style="background:#07111f;color:#fff;border:1px solid #2a3b53;border-radius:10px;padding:10px;">
+          <option value="available">🟡 Buyback Available</option>
+          <option value="used">⚫ Buyback Used</option>
+        </select>
+      </div>
+
+      <select id="overrideResult" style="width:100%;background:#07111f;color:#fff;border:1px solid #2a3b53;border-radius:10px;padding:10px;margin-bottom:8px;">
+        <option value="KEEP">Keep current week result</option>
+        <option value="Pending">⏳ Pending</option>
+        <option value="TD">✅ TD</option>
+        <option value="No TD">❌ No TD</option>
+      </select>
+
+      <button id="saveOverride" class="primary">Apply Commissioner Override</button>
+      <div style="font-size:9px;color:#738196;margin-top:8px;line-height:1.4;">
+        Use only to correct mistakes, bugs, or special commissioner rulings. This does not edit the selected player.
+      </div>
+    `;
+    document.querySelector("#overrideAdmin").insertAdjacentElement("afterend",panel);
+
+    const entrySelect=document.querySelector("#overrideEntrySelect");
+    entrySelect.onchange=()=>{
+      const e=(adminState.entries||[]).find(x=>x.id===entrySelect.value);
+      if(!e)return;
+      document.querySelector("#overrideStatus").value=e.status==="alive"?"alive":"out";
+      document.querySelector("#overrideBuyback").value=e.buybackUsed?"used":"available";
+      document.querySelector("#overrideResult").value="KEEP";
+    };
+
+    document.querySelector("#saveOverride").onclick=async()=>{
+      const entryId=entrySelect.value;
+      if(!entryId){alert("Select a play first.");return;}
+
+      const e=(adminState.entries||[]).find(x=>x.id===entryId);
+      const status=document.querySelector("#overrideStatus").value;
+      const buybackUsed=document.querySelector("#overrideBuyback").value==="used";
+      const result=document.querySelector("#overrideResult").value;
+
+      if(!confirm(`Override ${e.label}?\n\nStatus: ${status.toUpperCase()}\nBuyback: ${buybackUsed?"USED":"AVAILABLE"}${result!=="KEEP"?`\nWeek result: ${result}`:""}`))return;
+
+      const btn=document.querySelector("#saveOverride");
+      btn.disabled=true;btn.textContent="Saving override…";
+
+      try{
+        await post("overrideEntry",{
+          adminToken:ADMIN_TOKEN,
+          entryId,
+          status,
+          buybackUsed,
+          result
+        });
+
+        btn.textContent="✅ Saved — updating…";
+        setTimeout(()=>window.location.reload(),1800);
+      }catch(err){
+        btn.disabled=false;btn.textContent="Apply Commissioner Override";
+        alert("Override failed: "+err.message);
+      }
+    };
+  };
+
   document.querySelector("#announceAdmin").onclick=()=>{
     const sorted=entries.filter(e=>e.currentPick).sort((a,b)=>a.label.localeCompare(b.label));
     const text=`🏈 TD SURVIVOR — WEEK ${state.league.week}\n\n🔒 PICKS ${locked?"LOCKED":"OPEN"}\n\n`+
