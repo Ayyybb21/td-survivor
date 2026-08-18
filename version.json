@@ -1,6 +1,6 @@
 {
-  "version": "10.1.0",
-  "script": "app-v10.js",
+  "version": "10.2.1",
+  "script": "app-v102.js",
   "released": "2026-08-17",
-  "notes": "Fix missing buyback badge helper in V10 standings."
+  "notes": "Cache-busted V10.2 with all standings helpers included."
 }
