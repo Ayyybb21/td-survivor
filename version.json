@@ -1,6 +1,6 @@
 {
-  "version": "10.15.2",
-  "script": "app-v10152.js",
+  "version": "10.15.3",
+  "script": "app-v10153.js",
   "released": "2026-08-17",
-  "notes": "Join-screen copy/pricing update, Buy Back card fit fix, and commissioner Remove Play / Remove Person controls with destructive-action confirmations."
+  "notes": "Commissioner Remove Person and Remove Play now use dropdown selectors instead of manual text entry."
 }
