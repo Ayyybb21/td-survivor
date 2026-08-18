@@ -1,6 +1,6 @@
 {
-  "version": "10.6.1",
-  "script": "app-v1061.js",
+  "version": "10.7.0",
+  "script": "app-v107.js",
   "released": "2026-08-17",
-  "notes": "Adds a small always-visible app version badge for update verification."
+  "notes": "Missing Pick Tracker and one-tap reminder center for commissioner."
 }
