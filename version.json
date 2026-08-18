@@ -1,6 +1,6 @@
 {
-  "version": "10.3.2",
-  "script": "app-v1032.js",
+  "version": "10.4.0",
+  "script": "app-v104.js",
   "released": "2026-08-17",
-  "notes": "Fix post-save selectedPlayer null confirmation error on iPhone."
+  "notes": "Commissioner Set/Edit Pick with player-used validation and override."
 }
