@@ -1,6 +1,6 @@
 {
-  "version": "10.13.4",
-  "script": "app-v10134.js",
+  "version": "10.13.5",
+  "script": "app-v10135.js",
   "released": "2026-08-17",
-  "notes": "Instant startup: renders last-known live league immediately, then refreshes league/player data silently in parallel."
+  "notes": "Prime Time cleanup: removes remaining navy styling from Chat/Admin and fixes extra bottom space in Chat."
 }
