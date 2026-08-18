@@ -1,6 +1,6 @@
 {
-  "version": "10.13.3",
-  "script": "app-v10133.js",
+  "version": "10.13.4",
+  "script": "app-v10134.js",
   "released": "2026-08-17",
-  "notes": "Tightens iPhone header spacing while preserving safe-area clearance."
+  "notes": "Instant startup: renders last-known live league immediately, then refreshes league/player data silently in parallel."
 }
