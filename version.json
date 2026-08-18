@@ -1,6 +1,6 @@
 {
-  "version": "10.4.0",
-  "script": "app-v104.js",
+  "version": "10.4.1",
+  "script": "app-v1041.js",
   "released": "2026-08-17",
-  "notes": "Commissioner Set/Edit Pick with player-used validation and override."
+  "notes": "Commissioner Set/Edit Pick player typeahead suggestions with top 5 matches."
 }
