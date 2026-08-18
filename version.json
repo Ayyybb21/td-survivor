@@ -1,6 +1,6 @@
 {
-  "version": "10.9.1",
-  "script": "app-v1091.js",
+  "version": "10.10.0",
+  "script": "app-v1010.js",
   "released": "2026-08-17",
-  "notes": "Fix automatic week-advance chat recap by posting from the browser with admin-authenticated system proof."
+  "notes": "Participant buyback decision, immediate-next-week expiration, and live chat announcements."
 }
