@@ -1,6 +1,6 @@
 {
-  "version": "10.3.1",
-  "script": "app-v1031.js",
+  "version": "10.3.2",
+  "script": "app-v1032.js",
   "released": "2026-08-17",
-  "notes": "Force fresh player cache and demote known Sleeper ranking anomalies."
+  "notes": "Fix post-save selectedPlayer null confirmation error on iPhone."
 }
