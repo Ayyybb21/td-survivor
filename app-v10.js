@@ -201,7 +201,7 @@ async function retireOldServiceWorkers(){
   }
 }
 
-const TD_APP_VERSION="10.0.0";
+const TD_APP_VERSION="10.1.0";
 let updateCheckTimer=null;
 
 function showUpdateBanner(nextVersion){
@@ -460,6 +460,17 @@ function renderPlayers(){
   document.querySelectorAll(".select:not([disabled])").forEach(b=>{
     b.onclick=()=>openModal(b.dataset.id,b.dataset.name);
   });
+}
+
+function buybackLabel(entry){
+  return entry.buybackUsed ? "Buyback Used" : "Buyback Available";
+}
+
+function buybackBadge(entry){
+  const used=Boolean(entry.buybackUsed);
+  const bg=used ? "#202838" : "#4a3914";
+  const fg=used ? "#aab5c5" : "#f7c66a";
+  return `<span style="display:inline-block;margin-top:5px;padding:3px 7px;border-radius:999px;background:${bg};color:${fg};font-size:8px;font-weight:850;letter-spacing:.35px;">${buybackLabel(entry)}</span>`;
 }
 
 function renderStandings(){
