@@ -1,6 +1,6 @@
 {
-  "version": "10.15.0",
-  "script": "app-v10150.js",
+  "version": "10.15.1",
+  "script": "app-v10151.js",
   "released": "2026-08-17",
-  "notes": "Adds commissioner Invite / Share flow for generating, copying and sharing each participant's private TD Survivor link."
+  "notes": "Self-join league invite: one generic invite link lets a new participant enter their own name and choose 1\u20135 plays, then creates their owner account and logs them in automatically."
 }
