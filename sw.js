@@ -1,4 +1,4 @@
-const CACHE="td-survivor-v9.4";
+const CACHE="td-survivor-v9.5";
 const ASSETS=["./","./index.html","./styles.css","./config.js","./app-v9.js","./manifest.webmanifest","./icon.svg"];
 
 self.addEventListener("install",event=>{

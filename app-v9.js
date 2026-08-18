@@ -421,77 +421,36 @@ function renderAdmin(){
     const deadline=prompt("Deadline label:",state.league.deadline)||state.league.deadline;
     try{await adminPost("setWeek",{week:w,deadlineLabel:deadline})}catch(err){alert(err.message)}
   };
-  document.querySelector("#gradeAdmin").onclick=()=>{
+  document.querySelector("#gradeAdmin").onclick=async()=>{
     const player=prompt("Player name to grade exactly as shown in picks (example: Derrick Henry):");if(!player)return;
     const scored=confirm(`Did ${player} score a rushing or receiving TD?
 
 OK = TD
 Cancel = No TD`);
 
-    const normalized=player.trim().toLowerCase();
-    const result=scored?"TD":"No TD";
+    // Give immediate feedback so the commissioner knows the action was accepted.
+    const gradeBtn=document.querySelector("#gradeAdmin");
+    const oldText=gradeBtn.textContent;
+    gradeBtn.disabled=true;
+    gradeBtn.textContent="🏈 Saving result…";
 
-    // Snapshot affected rows so we can roll back if Google fails.
-    const affectedAdmin=(adminState.entries||[]).filter(e=>
-      String(e.currentPick||"").trim().toLowerCase()===normalized
-    ).map(e=>({
-      id:e.id,
-      status:e.status,
-      currentResult:e.currentResult
-    }));
+    try{
+      // Send the grade to Google Apps Script.
+      await post("gradePlayer",{adminToken:ADMIN_TOKEN,playerName:player,scored});
 
-    const affectedStandings=(state.standings||[]).filter(e=>
-      String(e.currentPick||"").trim().toLowerCase()===normalized
-    ).map(e=>({
-      id:e.id,
-      status:e.status,
-      currentResult:e.currentResult
-    }));
+      // The one thing we KNOW works reliably on every browser/device is a real
+      // page reload. Do it automatically after the backend has had a moment to
+      // expose the updated Sheet values.
+      gradeBtn.textContent="✅ Saved — updating…";
 
-    // Update commissioner data immediately.
-    (adminState.entries||[]).forEach(e=>{
-      if(String(e.currentPick||"").trim().toLowerCase()!==normalized)return;
-      e.currentResult=result;
-      if(!scored){
-        e.status=e.buybackUsed?"out":"buyback_needed";
-      }
-    });
-
-    // Update public standings immediately.
-    (state.standings||[]).forEach(e=>{
-      if(String(e.currentPick||"").trim().toLowerCase()!==normalized)return;
-      e.currentResult=result;
-      const adminEntry=(adminState.entries||[]).find(x=>x.id===e.id);
-      if(!scored){
-        e.status=adminEntry?.buybackUsed?"out":"buyback_needed";
-      }
-    });
-
-    // Update this owner's own play/history immediately too.
-    (state.entries||[]).forEach(e=>{
-      const p=(e.picks||[]).find(p=>
-        Number(p.week)===Number(state.league.week) &&
-        String(p.player||"").trim().toLowerCase()===normalized
-      );
-      if(!p)return;
-      p.result=result;
-      if(!scored){
-        e.status=e.buybackUsed?"out":"buyback_needed";
-      }
-    });
-
-    renderAllLiveViews();
-
-    syncAdminInBackground("gradePlayer",{playerName:player,scored},()=>{
-      affectedAdmin.forEach(old=>{
-        const e=(adminState.entries||[]).find(x=>x.id===old.id);
-        if(e){e.status=old.status;e.currentResult=old.currentResult;}
-      });
-      affectedStandings.forEach(old=>{
-        const e=(state.standings||[]).find(x=>x.id===old.id);
-        if(e){e.status=old.status;e.currentResult=old.currentResult;}
-      });
-    });
+      setTimeout(()=>{
+        window.location.reload();
+      },1800);
+    }catch(err){
+      gradeBtn.disabled=false;
+      gradeBtn.textContent=oldText;
+      alert("Could not save grading result: "+err.message);
+    }
   };
   document.querySelector("#announceAdmin").onclick=()=>{
     const sorted=entries.filter(e=>e.currentPick).sort((a,b)=>a.label.localeCompare(b.label));
