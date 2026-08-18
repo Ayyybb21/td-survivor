@@ -1,6 +1,6 @@
 {
-  "version": "10.12.1",
-  "script": "app-v10121.js",
+  "version": "10.13.0",
+  "script": "app-v10130.js",
   "released": "2026-08-17",
-  "notes": "Fixes the Pick screen to use one dynamic top hero card that flips yellow before a pick and green with player name/headshot after a pick."
+  "notes": "Prime Time theme: graphite/black base, electric orange brand accent, condensed sports typography, semantic green/yellow/red states."
 }
