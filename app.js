@@ -30,10 +30,22 @@ async function loadAdminState(){
 async function adminPost(action, body={}){
   if(!ADMIN_TOKEN) throw new Error("Commissioner token is not saved.");
   await post(action,{adminToken:ADMIN_TOKEN,...body});
-  await new Promise(r=>setTimeout(r,700));
-  await refreshLive();
+
+  // Apps Script finishes the Sheet write before doPost returns, so there is no
+  // need for the old fixed 700ms delay or a full participant-state reload.
+  // Refresh only the commissioner data needed by this screen.
   await loadAdminState();
+
+  // Keep the locally-rendered league header in sync for admin settings changes.
+  if(action==="lockWeek") state.league.locked=Boolean(body.locked);
+  if(action==="setWeek"){
+    state.league.week=Number(body.week);
+    if(body.deadlineLabel) state.league.deadline=body.deadlineLabel;
+    state.league.locked=false;
+  }
+
   renderAdmin();
+  renderHeader();
 }
 
 function demoState(){
@@ -292,7 +304,11 @@ function renderAdmin(){
 
   document.querySelectorAll("[data-paid]").forEach(b=>b.onclick=async()=>{
     const e=entries.find(x=>x.id===b.dataset.paid);
-    try{await adminPost("setPaid",{entryId:e.id,paid:!e.paid})}catch(err){alert(err.message)}
+    const oldText=b.textContent;
+    b.disabled=true;
+    b.textContent=e.paid?"Saving…":"Paid ✓";
+    try{await adminPost("setPaid",{entryId:e.id,paid:!e.paid})}
+    catch(err){b.disabled=false;b.textContent=oldText;alert(err.message)}
   });
   document.querySelectorAll("[data-buy]").forEach(b=>b.onclick=async()=>{
     const e=entries.find(x=>x.id===b.dataset.buy);
@@ -312,7 +328,11 @@ function renderAdmin(){
     try{await adminPost("addEntry",{ownerId:o.id})}catch(err){alert(err.message)}
   };
   document.querySelector("#lockAdmin").onclick=async()=>{
-    try{await adminPost("lockWeek",{locked:!locked})}catch(err){alert(err.message)}
+    const b=document.querySelector("#lockAdmin");
+    b.disabled=true;
+    b.textContent=locked?"🔓 Unlocking…":"🔒 Locking…";
+    try{await adminPost("lockWeek",{locked:!locked})}
+    catch(err){b.disabled=false;b.textContent=locked?"🔓 Unlock Picks":"🔒 Lock Picks";alert(err.message)}
   };
   document.querySelector("#weekAdmin").onclick=async()=>{
     const w=Number(prompt("Set current week:",state.league.week));if(!w)return;
