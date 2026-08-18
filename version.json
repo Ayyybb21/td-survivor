@@ -1,6 +1,6 @@
 {
-  "version": "10.5.0",
-  "script": "app-v105.js",
+  "version": "10.5.1",
+  "script": "app-v1051.js",
   "released": "2026-08-17",
-  "notes": "Safe weekly rollover: Advance Week with grading/submission checks and history preservation."
+  "notes": "Prevent reusing players across weeks by checking both player ID and normalized player name."
 }
