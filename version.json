@@ -1,6 +1,6 @@
 {
-  "version": "10.8.2",
-  "script": "app-v1082.js",
+  "version": "10.8.3",
+  "script": "app-v1083.js",
   "released": "2026-08-17",
-  "notes": "Fix chat authorization response and keep five-tab nav fully visible on iPhone."
+  "notes": "Fix five-tab bottom navigation sizing and visibility on iPhone."
 }
