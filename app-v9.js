@@ -421,36 +421,80 @@ function renderAdmin(){
     const deadline=prompt("Deadline label:",state.league.deadline)||state.league.deadline;
     try{await adminPost("setWeek",{week:w,deadlineLabel:deadline})}catch(err){alert(err.message)}
   };
-  document.querySelector("#gradeAdmin").onclick=async()=>{
-    const player=prompt("Player name to grade exactly as shown in picks (example: Derrick Henry):");if(!player)return;
-    const scored=confirm(`Did ${player} score a rushing or receiving TD?
+  document.querySelector("#gradeAdmin").onclick=()=>{
+    const existing=document.querySelector("#gradePanel");
+    if(existing){existing.remove();return;}
 
-OK = TD
-Cancel = No TD`);
+    // Unique current-week players actually used by at least one entry.
+    const usedPlayers=[...new Set(
+      (adminState.entries||[])
+        .map(e=>String(e.currentPick||"").trim())
+        .filter(Boolean)
+    )].sort((a,b)=>a.localeCompare(b));
 
-    // Give immediate feedback so the commissioner knows the action was accepted.
-    const gradeBtn=document.querySelector("#gradeAdmin");
-    const oldText=gradeBtn.textContent;
-    gradeBtn.disabled=true;
-    gradeBtn.textContent="🏈 Saving result…";
-
-    try{
-      // Send the grade to Google Apps Script.
-      await post("gradePlayer",{adminToken:ADMIN_TOKEN,playerName:player,scored});
-
-      // The one thing we KNOW works reliably on every browser/device is a real
-      // page reload. Do it automatically after the backend has had a moment to
-      // expose the updated Sheet values.
-      gradeBtn.textContent="✅ Saved — updating…";
-
-      setTimeout(()=>{
-        window.location.reload();
-      },1800);
-    }catch(err){
-      gradeBtn.disabled=false;
-      gradeBtn.textContent=oldText;
-      alert("Could not save grading result: "+err.message);
+    if(!usedPlayers.length){
+      alert("No Week "+state.league.week+" picks have been submitted yet.");
+      return;
     }
+
+    const panel=document.createElement("div");
+    panel.id="gradePanel";
+    panel.style.cssText="margin-top:10px;padding:12px;border:1px solid #2b3b52;border-radius:12px;background:#0a1422;";
+    panel.innerHTML=`
+      <div style="font-size:9px;color:#8290a3;font-weight:800;letter-spacing:.8px;margin-bottom:7px;">GRADE WEEK ${state.league.week}</div>
+      <select id="gradePlayerSelect" style="width:100%;background:#07111f;color:#fff;border:1px solid #2a3b53;border-radius:10px;padding:11px;margin-bottom:8px;">
+        <option value="">Select utilized player…</option>
+        ${usedPlayers.map(p=>`<option value="${p.replaceAll('"','&quot;')}">${p}</option>`).join("")}
+      </select>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        <button id="gradeTdBtn" style="border:1px solid #245f44;background:#123c2a;color:#5be69d;border-radius:10px;padding:11px;font-weight:900;">✅ TD</button>
+        <button id="gradeNoTdBtn" style="border:1px solid #68343a;background:#351a20;color:#ff8993;border-radius:10px;padding:11px;font-weight:900;">❌ NO TD</button>
+      </div>
+      <div id="gradeUsage" style="font-size:9px;color:#738196;margin-top:8px;"></div>
+    `;
+
+    document.querySelector("#gradeAdmin").insertAdjacentElement("afterend",panel);
+
+    const select=document.querySelector("#gradePlayerSelect");
+    const usage=document.querySelector("#gradeUsage");
+
+    select.onchange=()=>{
+      const player=select.value;
+      if(!player){usage.textContent="";return;}
+      const affected=(adminState.entries||[]).filter(e=>e.currentPick===player);
+      const pending=affected.filter(e=>!e.currentResult||e.currentResult==="Pending").length;
+      usage.textContent=`${affected.length} play${affected.length===1?"":"s"} selected ${player}${pending!==affected.length?` • ${affected.length-pending} already graded`:""}.`;
+    };
+
+    async function submitGrade(scored){
+      const player=select.value;
+      if(!player){alert("Select a player first.");return;}
+
+      const yes=scored ? "TD" : "NO TD";
+      if(!confirm(`Grade ${player} as ${yes}?`))return;
+
+      const td=document.querySelector("#gradeTdBtn");
+      const no=document.querySelector("#gradeNoTdBtn");
+      td.disabled=true;no.disabled=true;
+      td.style.opacity=".5";no.style.opacity=".5";
+      usage.textContent=`Saving ${player} as ${yes}…`;
+
+      try{
+        await post("gradePlayer",{adminToken:ADMIN_TOKEN,playerName:player,scored});
+        usage.textContent="✅ Saved. Updating results…";
+
+        // Keep the reliable V9.5 auto-refresh behavior.
+        setTimeout(()=>window.location.reload(),1800);
+      }catch(err){
+        td.disabled=false;no.disabled=false;
+        td.style.opacity="1";no.style.opacity="1";
+        usage.textContent="";
+        alert("Could not save grading result: "+err.message);
+      }
+    }
+
+    document.querySelector("#gradeTdBtn").onclick=()=>submitGrade(true);
+    document.querySelector("#gradeNoTdBtn").onclick=()=>submitGrade(false);
   };
   document.querySelector("#announceAdmin").onclick=()=>{
     const sorted=entries.filter(e=>e.currentPick).sort((a,b)=>a.label.localeCompare(b.label));
