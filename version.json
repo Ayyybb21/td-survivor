@@ -1,6 +1,6 @@
 {
-  "version": "10.15.7",
-  "script": "app-v10157.js",
+  "version": "10.15.8",
+  "script": "app-v10158.js",
   "released": "2026-08-18",
-  "notes": "True Black theme rollout plus TD Survivor #11 home-screen icon assets for iPhone and Android."
+  "notes": "Fixes self-reported app version mismatch from V10.15.7 and hardens Update Now for iPhone Home Screen PWAs."
 }
