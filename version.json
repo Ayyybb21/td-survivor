@@ -1,6 +1,6 @@
 {
-  "version": "10.14.0",
-  "script": "app-v10140.js",
+  "version": "10.14.1",
+  "script": "app-v10141.js",
   "released": "2026-08-17",
-  "notes": "Adds Commissioner Mass Grade: grade multiple utilized players TD/No TD in one batch with safeguards and League Chat announcements."
+  "notes": "Hardens safe commissioner writes against transient iPhone Load failed errors; Lock Picks now saves before UI/chat changes and Mass Grade retries idempotent grade writes."
 }
