@@ -1,6 +1,6 @@
 {
-  "version": "10.11.2",
-  "script": "app-v10112.js",
+  "version": "10.11.3",
+  "script": "app-v10113.js",
   "released": "2026-08-17",
-  "notes": "Adds subtle unread League Chat notification badge that persists across app closes."
+  "notes": "Retries slow Apps Script live bootstrap and uses last-known live state instead of dropping to Demo Mode."
 }
