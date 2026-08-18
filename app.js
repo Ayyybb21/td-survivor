@@ -1,56 +1,9 @@
 
-
-// TD Survivor V6 — iOS Home Screen authentication fix
-// Replace the beginning of app.js with this auth bootstrap section,
-// then keep the rest of the V5 application code unchanged.
-//
-// This version stores the owner token in BOTH localStorage and a first-party
-// cookie. iOS copies cookies into a newly-created Home Screen web app, while
-// it does not copy localStorage.
-
 const API_URL = (window.TD_CONFIG?.API_URL || "").trim();
-
 const params = new URLSearchParams(window.location.search);
-const URL_TOKEN = params.get("token") || "";
-
-function readCookie(name) {
-  const prefix = name + "=";
-  const parts = document.cookie.split(";").map(v => v.trim());
-  const found = parts.find(v => v.startsWith(prefix));
-  return found ? decodeURIComponent(found.slice(prefix.length)) : "";
-}
-
-function writeOwnerToken(token) {
-  if (!token) return;
-
-  // Browser storage is useful for normal Safari/browser use.
-  localStorage.setItem("td_owner_token", token);
-
-  // Cookie is the important piece for iPhone/iPad "Add to Home Screen".
-  // Safari/WebKit copies first-party cookies into the newly-created web app.
-  document.cookie =
-    "td_owner_token=" + encodeURIComponent(token) +
-    "; Max-Age=31536000; Path=/; Secure; SameSite=Lax";
-}
-
-if (URL_TOKEN) {
-  writeOwnerToken(URL_TOKEN);
-}
-
-const OWNER_TOKEN =
-  URL_TOKEN ||
-  readCookie("td_owner_token") ||
-  localStorage.getItem("td_owner_token") ||
-  "";
-
-// Once the token is safely stored, remove it from the visible URL.
-// This avoids leaving the private account token sitting in screenshots/history.
-if (URL_TOKEN && window.history && history.replaceState) {
-  const cleanUrl = new URL(window.location.href);
-  cleanUrl.searchParams.delete("token");
-  history.replaceState({}, document.title, cleanUrl.pathname + cleanUrl.search + cleanUrl.hash);
-}
-
+const URL_TOKEN = params.get("token");
+if (URL_TOKEN) localStorage.setItem("td_owner_token", URL_TOKEN);
+const OWNER_TOKEN = URL_TOKEN || localStorage.getItem("td_owner_token") || "";
 
 const PLAYERS = [
 ["derrick-henry","Derrick Henry","BAL","RB"],["saquon-barkley","Saquon Barkley","PHI","RB"],
@@ -66,6 +19,22 @@ const PLAYERS = [
 
 let selectedPlayer = null;
 let state = null;
+let adminState = null;
+let ADMIN_TOKEN = localStorage.getItem("td_admin_token") || "";
+
+async function loadAdminState(){
+  if(!ADMIN_TOKEN) return null;
+  adminState = await jsonp("adminState",{adminToken:ADMIN_TOKEN});
+  return adminState;
+}
+async function adminPost(action, body={}){
+  if(!ADMIN_TOKEN) throw new Error("Commissioner token is not saved.");
+  await post(action,{adminToken:ADMIN_TOKEN,...body});
+  await new Promise(r=>setTimeout(r,700));
+  await refreshLive();
+  await loadAdminState();
+  renderAdmin();
+}
 
 function demoState(){
   const names=["bb","Tay","Eddie","Brendan","Johnny","Jack","Timmy","Theresa","Ash","Rick","Drew","Byrne","Mac","Ed","Vincie","Big Vince","Dane","Gilchrist","Joe","Logan","Gabe","Vinny"];
@@ -256,10 +225,121 @@ function renderHistory(){
 }
 
 function renderAdmin(){
-  document.querySelector("#adminEntries").textContent=state.totalEntries;
-  document.querySelector("#adminAlive").textContent=state.aliveEntries;
-  document.querySelector("#adminBuybacks").textContent=state.standings.filter(e=>e.buybackUsed).length;
-  document.querySelector("#adminPot").textContent="$"+state.league.projectedPot;
+  const view=document.querySelector("#adminView");
+  if(!ADMIN_TOKEN){
+    view.innerHTML=`
+      <div class="panel-head"><div><div class="eyebrow">COMMISSIONER</div><h3>Control center</h3></div><span class="admin-badge">PRIVATE</span></div>
+      <div class="admin-login">
+        <p>Enter the private commissioner token from the Settings sheet once. It will stay saved only on this device.</p>
+        <input id="adminTokenInput" class="admin-token" type="password" placeholder="Commissioner token">
+        <button id="saveAdminToken" class="primary">Unlock Commissioner Mode</button>
+      </div>`;
+    document.querySelector("#saveAdminToken").onclick=async()=>{
+      const v=document.querySelector("#adminTokenInput").value.trim();
+      if(!v)return;
+      ADMIN_TOKEN=v;localStorage.setItem("td_admin_token",v);
+      try{await loadAdminState();renderAdmin()}catch(err){
+        ADMIN_TOKEN="";localStorage.removeItem("td_admin_token");alert(err.message);renderAdmin();
+      }
+    };
+    return;
+  }
+  if(!adminState){
+    view.innerHTML=`<div class="panel-head"><div><div class="eyebrow">COMMISSIONER</div><h3>Control center</h3></div></div><div class="muted">Loading commissioner data…</div>`;
+    loadAdminState().then(renderAdmin).catch(err=>{
+      alert("Commissioner access failed: "+err.message);
+      ADMIN_TOKEN="";localStorage.removeItem("td_admin_token");renderAdmin();
+    });
+    return;
+  }
+
+  const entries=adminState.entries||[], owners=adminState.owners||[];
+  const alive=entries.filter(e=>e.status==="alive").length;
+  const buybacks=entries.filter(e=>e.buybackUsed).length;
+  const submitted=entries.filter(e=>e.currentPick).length;
+  const projected=entries.length*Number(state.league.entryFee||20)+buybacks*Number(state.league.buybackFee||10);
+  const locked=String(adminState.league.week_locked).toUpperCase()==="TRUE";
+
+  view.innerHTML=`
+    <div class="panel-head"><div><div class="eyebrow">COMMISSIONER</div><h3>Control center</h3></div><span class="admin-badge">ADMIN</span></div>
+    <div class="admin-grid">
+      <div><span>Plays</span><b>${entries.length}</b></div>
+      <div><span>Alive</span><b>${alive}</b></div>
+      <div><span>Submitted</span><b>${submitted}/${alive}</b></div>
+      <div><span>Pot</span><b>$${projected}</b></div>
+    </div>
+    <div class="admin-toolbar">
+      <button id="addOwnerAdmin">➕ Add Person</button>
+      <button id="addEntryAdmin">➕ Add Play</button>
+      <button id="lockAdmin">${locked?"🔓 Unlock Picks":"🔒 Lock Picks"}</button>
+      <button id="weekAdmin">📅 Set Week</button>
+      <button id="gradeAdmin">🏈 Grade Player</button>
+      <button id="announceAdmin">📣 Announcement</button>
+      <button id="logoutAdmin" class="admin-full">🔐 Forget Admin Token</button>
+    </div>
+    <div id="adminMessage"></div>
+    <div class="admin-section"><h4>PLAYS</h4><div id="adminEntryRows"></div></div>`;
+
+  const rows=document.querySelector("#adminEntryRows");
+  entries.forEach(e=>{
+    rows.insertAdjacentHTML("beforeend",`<div class="admin-row">
+      <div class="admin-row-main"><div class="admin-row-name">${e.label}</div>
+      <div class="admin-row-meta">${e.ownerName} • ${e.status.toUpperCase()} • ${e.currentPick||"No pick"} • ${e.paid?"PAID":"UNPAID"}${e.buybackUsed?" • BUYBACK USED":""}</div></div>
+      <button class="mini-btn ${e.paid?"good":"warn"}" data-paid="${e.id}">${e.paid?"Paid":"Mark Paid"}</button>
+      <button class="mini-btn" data-buy="${e.id}" ${e.buybackUsed?"disabled":""}>Buyback</button>
+    </div>`);
+  });
+
+  document.querySelectorAll("[data-paid]").forEach(b=>b.onclick=async()=>{
+    const e=entries.find(x=>x.id===b.dataset.paid);
+    try{await adminPost("setPaid",{entryId:e.id,paid:!e.paid})}catch(err){alert(err.message)}
+  });
+  document.querySelectorAll("[data-buy]").forEach(b=>b.onclick=async()=>{
+    const e=entries.find(x=>x.id===b.dataset.buy);
+    if(!confirm(`Use the one-time $${state.league.buybackFee} buyback for ${e.label}?`))return;
+    const paid=confirm("Has the $10 buyback been paid?");
+    try{await adminPost("buyback",{entryId:e.id,buybackPaid:paid})}catch(err){alert(err.message)}
+  });
+
+  document.querySelector("#addOwnerAdmin").onclick=async()=>{
+    const name=prompt("New participant name:");if(!name)return;
+    try{await adminPost("addOwner",{name});alert(`${name} added.`)}catch(err){alert(err.message)}
+  };
+  document.querySelector("#addEntryAdmin").onclick=async()=>{
+    const name=prompt("Owner name to add another play for:");if(!name)return;
+    const o=owners.find(x=>x.name.toLowerCase()===name.toLowerCase());
+    if(!o){alert("Owner not found.");return}
+    try{await adminPost("addEntry",{ownerId:o.id})}catch(err){alert(err.message)}
+  };
+  document.querySelector("#lockAdmin").onclick=async()=>{
+    try{await adminPost("lockWeek",{locked:!locked})}catch(err){alert(err.message)}
+  };
+  document.querySelector("#weekAdmin").onclick=async()=>{
+    const w=Number(prompt("Set current week:",state.league.week));if(!w)return;
+    const deadline=prompt("Deadline label:",state.league.deadline)||state.league.deadline;
+    try{await adminPost("setWeek",{week:w,deadlineLabel:deadline})}catch(err){alert(err.message)}
+  };
+  document.querySelector("#gradeAdmin").onclick=async()=>{
+    const player=prompt("Player name to grade exactly as shown in picks (example: Derrick Henry):");if(!player)return;
+    const scored=confirm(`Did ${player} score a rushing or receiving TD?
+
+OK = TD
+Cancel = No TD`);
+    try{await adminPost("gradePlayer",{playerName:player,scored})}catch(err){alert(err.message)}
+  };
+  document.querySelector("#announceAdmin").onclick=()=>{
+    const sorted=entries.filter(e=>e.currentPick).sort((a,b)=>a.label.localeCompare(b.label));
+    const text=`🏈 TD SURVIVOR — WEEK ${state.league.week}\n\n🔒 PICKS ${locked?"LOCKED":"OPEN"}\n\n`+
+      sorted.map(e=>`${e.label} — ${e.currentPick}`).join("\n")+
+      `\n\n${alive} plays alive • $${projected} pot\n\nGood luck! 🫡`;
+    navigator.clipboard?.writeText(text);
+    document.querySelector("#adminMessage").innerHTML=`<div class="copybox">${text.replaceAll("\n","<br>")}</div><div class="admin-note">Copied to clipboard.</div>`;
+  };
+  document.querySelector("#logoutAdmin").onclick=()=>{
+    if(confirm("Forget the commissioner token on this device?")){
+      ADMIN_TOKEN="";adminState=null;localStorage.removeItem("td_admin_token");renderAdmin();
+    }
+  };
 }
 
 function render(){
@@ -291,12 +371,15 @@ document.querySelectorAll(".filter[data-pos]").forEach(b=>{
 });
 
 document.querySelectorAll(".navbtn").forEach(b=>{
-  b.onclick=()=>{
+  b.onclick=async()=>{
     document.querySelectorAll(".navbtn").forEach(x=>x.classList.remove("active"));
     b.classList.add("active");
     ["pickView","standingsView","historyView","adminView"].forEach(id=>{
       document.querySelector("#"+id).classList.toggle("hidden",id!==b.dataset.view);
     });
+    if(b.dataset.view==="adminView" && ADMIN_TOKEN){
+      try{await loadAdminState();renderAdmin()}catch(err){console.error(err)}
+    }
   };
 });
 
@@ -341,9 +424,6 @@ document.querySelector("#confirm").onclick=async()=>{
   }
 };
 
-document.querySelector("#lockBtn").onclick=()=>alert("Commissioner controls will be connected with the private admin link next.");
-document.querySelector("#announcementBtn").onclick=()=>alert("The announcement generator will be connected to the commissioner dashboard next.");
-document.querySelector("#buybackBtn").onclick=()=>alert("Buybacks will be controlled from the commissioner dashboard.");
 
 document.querySelector("#profileBtn").onclick=()=>{
   if(state.mode==="live"){
