@@ -1,6 +1,6 @@
 {
-  "version": "10.15.8",
-  "script": "app-v10158.js",
-  "released": "2026-08-18",
-  "notes": "Fixes self-reported app version mismatch from V10.15.7 and hardens Update Now for iPhone Home Screen PWAs."
+  "version": "10.16.0",
+  "script": "app-v10160.js",
+  "released": "2026-08-19",
+  "notes": "Notifications V1"
 }
