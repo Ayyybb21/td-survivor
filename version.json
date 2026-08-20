@@ -1,6 +1,6 @@
 {
-  "version": "10.17.0",
-  "script": "app-v10170.js",
+  "version": "10.18.0",
+  "script": "app-v10180.js",
   "released": "2026-08-20",
-  "notes": "Automatic event notifications: pick graded results, buyback available/decision alerts, and new-week-open pushes, with owner-specific targeting."
+  "notes": "Read-only NFL Live Shadow Mode V1: owner pick card shows matched 2026 game context. No automatic grading."
 }
