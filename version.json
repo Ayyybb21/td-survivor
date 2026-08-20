@@ -1,6 +1,6 @@
 {
-  "version": "10.16.4",
-  "script": "app-v10164.js",
+  "version": "10.16.5",
+  "script": "app-v10165.js",
   "released": "2026-08-20",
-  "notes": "Adds a dedicated Change Deadline commissioner control that can update the current week's pick deadline at any time and automatically retarget Smart Reminders."
+  "notes": "Change Deadline now uses dropdown selectors for weekday, hour, minute and AM/PM to prevent formatting and spelling errors."
 }
