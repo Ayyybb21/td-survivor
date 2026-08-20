@@ -1,6 +1,6 @@
 {
-  "version": "10.19.0",
-  "script": "app-v10190.js",
+  "version": "10.19.1",
+  "script": "app-v10191.js",
   "released": "2026-08-20",
-  "notes": "NFL Live Engine V1: read-only game matching + GSIS player resolution + 2026 weekly qualifying-TD detection. No automatic grading or status changes."
+  "notes": "GSIS resolver hotfix: tolerant suffix/first-name matching for NFLverse IDs while retaining ambiguity safeguards. Fixes players such as Harold Fannin vs Harold Fannin Jr."
 }
