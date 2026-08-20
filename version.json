@@ -1,6 +1,6 @@
 {
-  "version": "10.18.1",
-  "script": "app-v10181.js",
+  "version": "10.18.2",
+  "script": "app-v10182.js",
   "released": "2026-08-20",
-  "notes": "Adds commissioner-only NFL Shadow Mode diagnostics to reveal which BBS fields are available for kickoff, status, quarter, clock and score before live-game integration."
+  "notes": "Fixes NFL Shadow Mode diagnostics backend error and makes the diagnostics button show backend errors even when schedule loading fails."
 }
