@@ -1,6 +1,6 @@
 {
-  "version": "10.16.0",
-  "script": "app-v10160.js",
-  "released": "2026-08-19",
-  "notes": "Notifications V1"
+  "version": "10.16.1",
+  "script": "app-v10161.js",
+  "released": "2026-08-20",
+  "notes": "Fixes push-notification taps so they open the TD Survivor PWA instead of the GitHub Pages account root."
 }
