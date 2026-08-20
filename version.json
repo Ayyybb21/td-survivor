@@ -1,6 +1,6 @@
 {
-  "version": "10.16.5",
-  "script": "app-v10165.js",
+  "version": "10.17.0",
+  "script": "app-v10170.js",
   "released": "2026-08-20",
-  "notes": "Change Deadline now uses dropdown selectors for weekday, hour, minute and AM/PM to prevent formatting and spelling errors."
+  "notes": "Automatic event notifications: pick graded results, buyback available/decision alerts, and new-week-open pushes, with owner-specific targeting."
 }
