@@ -1,6 +1,6 @@
 {
-  "version": "10.18.0",
-  "script": "app-v10180.js",
+  "version": "10.18.1",
+  "script": "app-v10181.js",
   "released": "2026-08-20",
-  "notes": "Read-only NFL Live Shadow Mode V1: owner pick card shows matched 2026 game context. No automatic grading."
+  "notes": "Adds commissioner-only NFL Shadow Mode diagnostics to reveal which BBS fields are available for kickoff, status, quarter, clock and score before live-game integration."
 }
