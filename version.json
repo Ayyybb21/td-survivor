@@ -1,6 +1,6 @@
 {
-  "version": "10.18.2",
-  "script": "app-v10182.js",
+  "version": "10.19.0",
+  "script": "app-v10190.js",
   "released": "2026-08-20",
-  "notes": "Fixes NFL Shadow Mode diagnostics backend error and makes the diagnostics button show backend errors even when schedule loading fails."
+  "notes": "NFL Live Engine V1: read-only game matching + GSIS player resolution + 2026 weekly qualifying-TD detection. No automatic grading or status changes."
 }
