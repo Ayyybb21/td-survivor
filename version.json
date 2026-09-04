@@ -1,6 +1,6 @@
 {
-  "version": "10.20.1",
-  "script": "app-v10201.js",
+  "version": "10.20.2",
+  "script": "app-v10202.js",
   "released": "2026-09-04",
-  "notes": "Hotfixes Start Fresh League UI: POST is no-cors and has no readable result body, so the app now reloads and verifies authoritative state instead of throwing result.commissioner undefined."
+  "notes": "Admin UX: Add Play now uses a dropdown of current active league owners instead of manual name entry."
 }
