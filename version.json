@@ -1,6 +1,6 @@
 {
-  "version": "10.20.2",
-  "script": "app-v10202.js",
+  "version": "10.20.3",
+  "script": "app-v10203.js",
   "released": "2026-09-04",
-  "notes": "Admin UX: Add Play now uses a dropdown of current active league owners instead of manual name entry."
+  "notes": "Adds commissioner Recover Login: choose any active owner from a dropdown, generate their existing private owner link, and copy/share it without creating duplicates."
 }
