@@ -1,6 +1,6 @@
 {
-  "version": "10.19.1",
-  "script": "app-v10191.js",
-  "released": "2026-08-20",
-  "notes": "GSIS resolver hotfix: tolerant suffix/first-name matching for NFLverse IDs while retaining ambiguity safeguards. Fixes players such as Harold Fannin vs Harold Fannin Jr."
+  "version": "10.20.0",
+  "script": "app-v10200.js",
+  "released": "2026-09-04",
+  "notes": "Launch build: adds one-time Start Fresh League reset that keeps only the selected commissioner, invalidates old participant/general invite links, reserves old IDs, clears all test activity, and creates one clean Week 1 commissioner play."
 }
