@@ -1,6 +1,6 @@
 {
-  "version": "10.20.0",
-  "script": "app-v10200.js",
+  "version": "10.20.1",
+  "script": "app-v10201.js",
   "released": "2026-09-04",
-  "notes": "Launch build: adds one-time Start Fresh League reset that keeps only the selected commissioner, invalidates old participant/general invite links, reserves old IDs, clears all test activity, and creates one clean Week 1 commissioner play."
+  "notes": "Hotfixes Start Fresh League UI: POST is no-cors and has no readable result body, so the app now reloads and verifies authoritative state instead of throwing result.commissioner undefined."
 }
