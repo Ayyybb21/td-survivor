@@ -1,6 +1,6 @@
 {
-  "version": "10.20.8",
-  "script": "app-v10208.js",
+  "version": "10.20.9",
+  "script": "app-v10209.js",
   "released": "2026-09-08",
-  "notes": "Multi-play pick hotfix: removes a post-save full-app refresh race that could interrupt Play 2 while owners switched immediately after saving Play 1; play switching now refreshes only the Pick screen."
+  "notes": "Critical multi-play pick hotfix: re-enables the persistent Confirm Pick button after a successful save and defensively resets it whenever a player modal opens."
 }
