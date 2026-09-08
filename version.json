@@ -1,6 +1,6 @@
 {
-  "version": "10.22.0",
-  "script": "app-v10220.js",
+  "version": "10.22.1",
+  "script": "app-v10221.js",
   "released": "2026-09-08",
-  "notes": "Adds Admin Automated Notifications control center with master switch and individual toggles for 24h/3h/30m missing-pick reminders, lock/reveal, new week, survived, eliminated, buyback, deadline-change, and commissioner alerts."
+  "notes": "Automatic deadline lock: scheduler now checks every minute and auto-locks/reveals the current week at the configured deadline, independent of notification master settings; optional Picks Locked push still respects its toggle."
 }
