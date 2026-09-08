@@ -1,6 +1,6 @@
 {
-  "version": "10.20.5",
-  "script": "app-v10205.js",
+  "version": "10.20.6",
+  "script": "app-v10206.js",
   "released": "2026-09-08",
-  "notes": "Push Announcement confirmation preview now renders real line breaks instead of showing literal \\\\n\\\\n characters. Notification payload itself is unchanged."
+  "notes": "Adds commissioner Notification Status panel showing which current owners have push notifications registered, device counts, automatic per-device status sync, and owner names after commissioner push announcements."
 }
