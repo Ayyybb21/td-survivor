@@ -1,6 +1,6 @@
 {
-  "version": "10.20.9",
-  "script": "app-v10209.js",
+  "version": "10.21.0",
+  "script": "app-v10210.js",
   "released": "2026-09-08",
-  "notes": "Critical multi-play pick hotfix: re-enables the persistent Confirm Pick button after a successful save and defensively resets it whenever a player modal opens."
+  "notes": "Pick Receipt upgrade: immediate Saving overlay, keep-open guidance, keepalive write, independent server verification of exact pick, and green Pick Confirmed receipt."
 }
