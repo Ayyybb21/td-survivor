@@ -1,6 +1,6 @@
 {
-  "version": "10.21.0",
-  "script": "app-v10210.js",
+  "version": "10.22.0",
+  "script": "app-v10220.js",
   "released": "2026-09-08",
-  "notes": "Pick Receipt upgrade: immediate Saving overlay, keep-open guidance, keepalive write, independent server verification of exact pick, and green Pick Confirmed receipt."
+  "notes": "Adds Admin Automated Notifications control center with master switch and individual toggles for 24h/3h/30m missing-pick reminders, lock/reveal, new week, survived, eliminated, buyback, deadline-change, and commissioner alerts."
 }
