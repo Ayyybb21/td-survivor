@@ -1,6 +1,6 @@
 {
-  "version": "10.20.6",
-  "script": "app-v10206.js",
+  "version": "10.20.8",
+  "script": "app-v10208.js",
   "released": "2026-09-08",
-  "notes": "Adds commissioner Notification Status panel showing which current owners have push notifications registered, device counts, automatic per-device status sync, and owner names after commissioner push announcements."
+  "notes": "Multi-play pick hotfix: removes a post-save full-app refresh race that could interrupt Play 2 while owners switched immediately after saving Play 1; play switching now refreshes only the Pick screen."
 }
