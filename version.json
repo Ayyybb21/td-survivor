@@ -1,6 +1,6 @@
 {
-  "version": "10.22.1",
-  "script": "app-v10221.js",
+  "version": "10.22.2",
+  "script": "app-v10222.js",
   "released": "2026-09-08",
-  "notes": "Automatic deadline lock: scheduler now checks every minute and auto-locks/reveals the current week at the configured deadline, independent of notification master settings; optional Picks Locked push still respects its toggle."
+  "notes": "Critical pre-lock privacy fix. Other owners' current-week picks are redacted server-side until week_locked is TRUE. History shows a neutral locked placeholder; your own current picks remain visible."
 }
