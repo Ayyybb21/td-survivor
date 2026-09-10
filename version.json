@@ -1,6 +1,4 @@
 {
-  "version": "10.24.1",
-  "script": "app-v10241.js",
-  "released": "2026-09-10",
-  "notes": "Gameday engine hotfix: server-side Sleeper team resolution, team alias normalization, fresh board cache, and player-pool load guard."
+  "version": "10.24.2",
+  "script": "app-v10242.js"
 }
