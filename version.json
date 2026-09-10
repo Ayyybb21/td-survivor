@@ -1,6 +1,6 @@
 {
-  "version": "10.24.0",
-  "script": "app-v10240.js",
+  "version": "10.24.1",
+  "script": "app-v10241.js",
   "released": "2026-09-10",
-  "notes": "Gameday Live: league-wide read-only NFL engine board, TD feed, grouped live player cards, survivor summary, expandable affected plays, and Admin Live Grading."
+  "notes": "Gameday engine hotfix: server-side Sleeper team resolution, team alias normalization, fresh board cache, and player-pool load guard."
 }
