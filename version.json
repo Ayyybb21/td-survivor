@@ -1,6 +1,6 @@
 {
-  "version": "10.23.0",
-  "script": "app-v10230.js",
+  "version": "10.23.1",
+  "script": "app-v10231.js",
   "released": "2026-09-10",
-  "notes": "Sunday tab + combined League standings/history + locked weekly pick breakdown + automatic duplicate-safe chat breakdown at lock."
+  "notes": "Rename Sunday to Gameday and make League standings taps scroll directly to the selected play's History/Scouting section."
 }
