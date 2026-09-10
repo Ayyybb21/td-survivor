@@ -1,6 +1,6 @@
 {
-  "version": "10.23.1",
-  "script": "app-v10231.js",
+  "version": "10.24.0",
+  "script": "app-v10240.js",
   "released": "2026-09-10",
-  "notes": "Rename Sunday to Gameday and make League standings taps scroll directly to the selected play's History/Scouting section."
+  "notes": "Gameday Live: league-wide read-only NFL engine board, TD feed, grouped live player cards, survivor summary, expandable affected plays, and Admin Live Grading."
 }
