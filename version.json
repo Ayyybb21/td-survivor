@@ -1,5 +1,4 @@
 {
   "version": "10.24.3",
-  "file": "app-v10243.js",
-  "notes": "Week recap recovery + reliable retry"
+  "script": "app-v10243.js"
 }
